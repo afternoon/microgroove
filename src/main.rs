@@ -22,8 +22,8 @@ mod microgroove {
                 Step {
                     active: true,
                     note,
-                    velocity: Value7::from(100),
-                    pitch_bend: Value14::from(0u16),
+                    velocity: 100.into(),
+                    pitch_bend: 0u16.into(),
                 }
             }
         }
@@ -50,11 +50,11 @@ mod microgroove {
         impl Track {
             pub fn new() -> Track {
                 let steps = [57, 59, 60, 62, 64, 65, 67, 69, 57, 59, 60, 62, 64, 65, 67, 69]
-                    .map(|note_num| { Step::new(Note::from(note_num)) });
+                    .map(|note_num| { Step::new(note_num.into()) });
                 Track {
                     active: true,
                     speed: TrackSpeed::Sixteenth,
-                    midi_channel: Channel::from(1),
+                    midi_channel: 1.into(),
                     steps: Vec::from_slice(steps.as_slice()).unwrap(),
                 }
             }
