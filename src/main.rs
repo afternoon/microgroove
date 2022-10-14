@@ -2,60 +2,156 @@
 #![no_main]
 
 // use probe_run to print panic messages
-use panic_probe as _;
+use panic_halt as _;
 
 mod microgroove {
-    // rtic app module
+    mod sequencer {
+        use heapless::Vec;
+        use midi_types::{Channel, Note, Value14, Value7};
+
+        #[derive(Clone, Debug)]
+        pub struct Step {
+            pub active: bool,
+            pub note: Note,
+            pub velocity: Value7,
+            pub pitch_bend: Value14,
+        }
+
+        impl Step {
+            pub fn new(note: Note) -> Step {
+                Step {
+                    active: true,
+                    note,
+                    velocity: Value7::from(100),
+                    pitch_bend: Value14::from(0u16),
+                }
+            }
+        }
+
+        #[derive(Debug)]
+        pub enum TrackSpeed {
+            ThirtySecond = 3,
+            Sixteenth = 6,
+            Eigth = 12,
+            Quarter = 24,
+            Whole = 96
+        }
+
+        pub type Sequence = Vec<Step, 32>;
+
+        #[derive(Debug)]
+        pub struct Track {
+            pub active: bool,
+            pub speed: TrackSpeed,
+            pub midi_channel: Channel,
+            pub steps: Sequence,
+        }
+
+        impl Track {
+            pub fn new() -> Track {
+                let steps = [57, 59, 60, 62, 64, 65, 67, 69, 57, 59, 60, 62, 64, 65, 67, 69]
+                    .map(|note_num| { Step::new(Note::from(note_num)) });
+                Track {
+                    active: true,
+                    speed: TrackSpeed::Sixteenth,
+                    midi_channel: Channel::from(1),
+                    steps: Vec::from_slice(steps.as_slice()).unwrap(),
+                }
+            }
+        }
+    }
+
+    // RTIC app module
     #[rtic::app(device = rp_pico::hal::pac, peripherals = true, dispatchers = [PIO0_IRQ_0, PIO0_IRQ_1, PIO1_IRQ_0, PIO1_IRQ_1])]
     mod app {
         // hal aliases
-        use rp_pico::hal;
-        use rp_pico::hal::{gpio, pac, uart};
-        use gpio::pin::bank0::{Gpio0, Gpio1};
-        use rp_pico::hal::Clock;
+        use rp_pico::hal::{
+            self,
+            Clock,
+            gpio::{
+                self,
+                pin::bank0::{Gpio0, Gpio1},
+            },
+            timer::{
+                self,
+                monotonic,
+                Alarm,
+            },
+            uart,
+        };
 
-        // embedded midi crate
-        use embedded_midi;
+        // midi type traits
         use midi_types::MidiMessage;
-
-        /// alias the type for our UART pins
-        type MidiInUartPin = gpio::Pin<Gpio0, gpio::Function<gpio::Uart>>;
-        type MidiOutUartPin = gpio::Pin<Gpio1, gpio::Function<gpio::Uart>>;
-        type MidiUartPins = (MidiInUartPin, MidiOutUartPin);
 
         // non-blocking io
         use nb::block;
-
-        // time manipulation
-        use fugit;
 
         // defmt rtt logging (read the logs with cargo embed, etc)
         use defmt;
         use defmt::{info, debug, trace};
         use defmt_rtt as _;
 
-        // rtic shared resources
+        // alloc-free data structures
+        use heapless::Vec;
+
+        // crate imports
+        use crate::microgroove::sequencer::Track;
+
+        // monotonic clock for RTIC and defmt
+        #[monotonic(binds = TIMER_IRQ_3, default = true)]
+        type DatMonotonicTimerYo = monotonic::Monotonic<timer::Alarm3>;
+
+        // alias the type for our UART pins
+        type MidiInUartPin = gpio::Pin<Gpio0, gpio::Function<gpio::Uart>>;
+        type MidiOutUartPin = gpio::Pin<Gpio1, gpio::Function<gpio::Uart>>;
+        type MidiUartPins = (MidiInUartPin, MidiOutUartPin);
+
+        // display update time is the time between each render
+        // this is the upper bound for the time to flush each frame to the oled
+        // at 40ms, the frame rate will be 25 FPS
+        // we want the lowest frame rate that looks acceptable, to provide the largest budget for
+        // render times
+        const DISPLAY_UPDATE_INTERVAL_US: fugit::MicrosDurationU32 = fugit::MicrosDurationU32::millis(40);
+
+        // RTIC shared resources
         #[shared]
         struct Shared {
+            // tracks are where we store our sequence data
+            tracks: Vec<Track, 16>,
+
+            // are we playing, or not?
+            playing: bool,
+
             // pins for buttons
             // pins for encoders
             // i2c/display interface
         }
 
-        // rtic local resources
+        // RTIC local resources
         #[local]
         struct Local {
-            midi_in: embedded_midi::MidiIn<uart::Reader<pac::UART0, MidiUartPins>>,
-            midi_out: embedded_midi::MidiOut<uart::Writer<pac::UART0, MidiUartPins>>,
+            // midi ports (2 halves of the split UART)
+            midi_in: embedded_midi::MidiIn<uart::Reader<hal::pac::UART0, MidiUartPins>>,
+            midi_out: embedded_midi::MidiOut<uart::Writer<hal::pac::UART0, MidiUartPins>>,
+
+            // alarm for firing display updates
+            display_update_alarm: timer::Alarm0,
         }
 
-        // rtic init
+        // RTIC init
         #[init]
         fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
             // release spinlocks to avoid a deadlock after soft-reset
             unsafe {
                 hal::sio::spinlock_reset();
             }
+
+            // configure source of timestamps for defmt
+            defmt::timestamp!("{=u64:us}", {
+                monotonics::now().duration_since_epoch().to_micros()
+            });
+
+            let playing = false;
 
             // clock setup for timers and alarms
             let mut watchdog = hal::Watchdog::new(ctx.device.WATCHDOG);
@@ -69,7 +165,18 @@ mod microgroove {
                 &mut watchdog,
             )
             .ok()
-            .expect("init_clocks_and_plls should succeed");
+            .expect("init_clocks_and_plls(...) should succeed");
+
+            let mut timer = hal::Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS);
+            
+            // create an alarm to update the display regularly
+            let mut display_update_alarm = timer.alarm_0().unwrap();
+            let _ = display_update_alarm.schedule(DISPLAY_UPDATE_INTERVAL_US);
+            display_update_alarm.enable_interrupt();
+
+            // create a monotonic timer for RTIC
+            let monotonic_alarm = timer.alarm_3().unwrap();
+            let monotonic_timer = timer::monotonic::Monotonic::new(timer, monotonic_alarm);
 
             // the single-cycle i/o block controls our gpio pins
             let sio = hal::Sio::new(ctx.device.SIO);
@@ -100,7 +207,7 @@ mod microgroove {
                     uart_config_31250_8_N_1,
                     clocks.peripheral_clock.freq(),
                 )
-                .expect("uart enable should succeed");
+                .expect("midi_uart.enable(...) should succeed");
 
             // configure uart interrupt to fire on midi input
             midi_uart.enable_rx_interrupt();
@@ -117,10 +224,16 @@ mod microgroove {
             // }
 
             // TODO init display
-            
+
+            // create some tracks!
+            let mut tracks = Vec::new();
+            for _ in 0..16 {
+                tracks.push(Track::new()).unwrap();
+            }
+
             info!("init complete");
 
-            (Shared {}, Local { midi_in, midi_out }, init::Monotonics())
+            (Shared { playing, tracks }, Local { midi_in, midi_out, display_update_alarm }, init::Monotonics(monotonic_timer))
         }
 
         #[task(binds = IO_IRQ_BANK0, priority = 4)]
@@ -133,8 +246,8 @@ mod microgroove {
             // TODO clear_interrupt(EdgeLow)
         }
 
-        #[task(binds = UART0_IRQ, priority = 4, local = [midi_in])]
-        fn uart0_irq(ctx: uart0_irq::Context) {
+        #[task(binds = UART0_IRQ, priority = 4, shared = [playing], local = [midi_in])]
+        fn uart0_irq(mut ctx: uart0_irq::Context) {
             // check midi input for messages
             trace!("a wild uart0 interrupt has fired!");
 
@@ -142,32 +255,80 @@ mod microgroove {
             if let Some(message) = block!(ctx.local.midi_in.read()).ok() {
                 // log the message
                 match message {
-                    MidiMessage::TimingClock => debug!("got midi message: TimingClock"),
-                    MidiMessage::Start => debug!("got midi message: Start"),
-                    MidiMessage::Stop => debug!("got midi message: Stop"),
-                    MidiMessage::Continue => debug!("got midi message: Continue"),
+                    MidiMessage::TimingClock => {
+                        debug!("got midi message: TimingClock");
+
+                        // if clock, spawn task to tick tracks and potentially generate midi output
+                        ctx.shared.playing.lock(|playing| {
+                            if *playing {
+                                sequencer_advance::spawn().expect("sequencer_advance::spawn() should succeed");
+                            }
+                        });
+                    }
+                    MidiMessage::Start => {
+                        debug!("got midi message: start");
+                        ctx.shared.playing.lock(|playing| {
+                            *playing = true;
+                        });
+                    }
+                    MidiMessage::Stop => {
+                        debug!("got midi message: stop");
+                        ctx.shared.playing.lock(|playing| {
+                            *playing = false;
+                        });
+                    }
+                    MidiMessage::Continue => {
+                        debug!("got midi message: continue");
+                        ctx.shared.playing.lock(|playing| {
+                            *playing = true;
+                        });
+                    }
                     _ => debug!("got midi message: UNKNOWN"),
                 }
 
                 // pass received message to midi out ("soft thru")
-                send_midi::spawn(message).expect("send_midi::spawn should succeed");
-
-                // TODO if clock, spawn task(s) to tick tracks and potentially generate midi output
-
-                // TODO handle start, stop, continue messages
+                midi_send::spawn(message).expect("midi_send::spawn(message) should succeed");
             }
 
-            // TODO clear interupt and schedule next tick
+            // TODO clear interrupt??
         }
 
         #[task(priority = 3, capacity = 50, local = [midi_out])]
-        fn send_midi(ctx: send_midi::Context, message: MidiMessage) {
+        fn midi_send(ctx: midi_send::Context, message: MidiMessage) {
+            debug!("midi_send");
             ctx.local.midi_out.write(&message)
                 .ok()
-                .expect("midi_out.write should succeed");
+                .expect("midi_out.write(message) should succeed");
         }
 
-        // idle task needed, default idle task calls wfi(), which breaks rtt
+        #[task(priority = 2, shared = [tracks], local = [ticks: u8 = 0])]
+        fn sequencer_advance(mut ctx: sequencer_advance::Context) {
+            debug!("sequencer_advance");
+
+            // TODO should all move to Tracks::advance()?
+            ctx.shared.tracks.lock(|tracks| {
+                for track in tracks.as_slice() {
+                    let step = &track.steps[*ctx.local.ticks as usize];
+                    let message = MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
+                    midi_send::spawn(message).unwrap();
+                }
+            });
+
+            *ctx.local.ticks += 1;
+            if *ctx.local.ticks > 95 { *ctx.local.ticks = 0}
+        }
+
+        // timer task to render UI at k FPS
+        #[task(binds = TIMER_IRQ_0, priority = 1, local = [display_update_alarm, ticks: u32 = 0])]
+        fn timer_irq_0(ctx: timer_irq_0::Context) {
+            *ctx.local.ticks += 1;
+            debug!("rendering ui, ticks={}", ctx.local.ticks);
+
+            ctx.local.display_update_alarm.clear_interrupt();
+            let _ = ctx.local.display_update_alarm.schedule(DISPLAY_UPDATE_INTERVAL_US);
+        }
+
+        // idle task needed in debug mode, default RTIC idle task calls wfi(), which breaks rtt
         #[idle]
         fn taskmain(_: taskmain::Context) -> ! {
             loop {
