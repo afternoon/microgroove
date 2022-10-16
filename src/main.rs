@@ -64,24 +64,45 @@ mod microgroove {
     // RTIC app module
     #[rtic::app(device = rp_pico::hal::pac, peripherals = true, dispatchers = [PIO0_IRQ_0, PIO0_IRQ_1, PIO1_IRQ_0, PIO1_IRQ_1])]
     mod app {
-        // hal aliases
-        use rp_pico::hal::{
-            self,
-            Clock,
-            gpio::{
-                self,
-                pin::bank0::{Gpio0, Gpio1},
+        // hal aliases - turns out we have a big dependency on the hardware 😀
+        use rp_pico::{
+            hal::{
+                Clock,
+                Timer,
+                Watchdog,
+                clocks,
+                gpio::{
+                    Function,
+                    FunctionUart,
+                    Pin,
+                    Uart,
+                    pin::bank0::{Gpio0, Gpio1},
+                },
+                pac::UART0,
+                sio::{
+                    self,
+                    Sio
+                },
+                timer::{
+                    Alarm,
+                    Alarm0,
+                    Alarm3,
+                    monotonic::Monotonic,
+                },
+                uart::{
+                    Reader,
+                    UartPeripheral,
+                    Writer,
+                    common_configs,
+                },
             },
-            timer::{
-                self,
-                monotonic,
-                Alarm,
-            },
-            uart,
+            Pins,
+            XOSC_CRYSTAL_FREQ,
         };
 
-        // midi type traits
+        // midi stuff
         use midi_types::MidiMessage;
+        use embedded_midi::{MidiIn, MidiOut};
 
         // non-blocking io
         use nb::block;
@@ -94,16 +115,19 @@ mod microgroove {
         // alloc-free data structures
         use heapless::Vec;
 
+        // time manipulation
+        use fugit::{HertzU32, MicrosDurationU32};
+
         // crate imports
-        use crate::microgroove::sequencer::Track;
+        use super::sequencer::Track;
 
         // monotonic clock for RTIC and defmt
         #[monotonic(binds = TIMER_IRQ_3, default = true)]
-        type DatMonotonicTimerYo = monotonic::Monotonic<timer::Alarm3>;
+        type Timer3Monotonic = Monotonic<Alarm3>;
 
         // alias the type for our UART pins
-        type MidiInUartPin = gpio::Pin<Gpio0, gpio::Function<gpio::Uart>>;
-        type MidiOutUartPin = gpio::Pin<Gpio1, gpio::Function<gpio::Uart>>;
+        type MidiInUartPin = Pin<Gpio0, Function<Uart>>;
+        type MidiOutUartPin = Pin<Gpio1, Function<Uart>>;
         type MidiUartPins = (MidiInUartPin, MidiOutUartPin);
 
         // display update time is the time between each render
@@ -111,7 +135,7 @@ mod microgroove {
         // at 40ms, the frame rate will be 25 FPS
         // we want the lowest frame rate that looks acceptable, to provide the largest budget for
         // render times
-        const DISPLAY_UPDATE_INTERVAL_US: fugit::MicrosDurationU32 = fugit::MicrosDurationU32::millis(40);
+        const DISPLAY_UPDATE_INTERVAL_US: MicrosDurationU32 = MicrosDurationU32::millis(40);
 
         // RTIC shared resources
         #[shared]
@@ -131,11 +155,11 @@ mod microgroove {
         #[local]
         struct Local {
             // midi ports (2 halves of the split UART)
-            midi_in: embedded_midi::MidiIn<uart::Reader<hal::pac::UART0, MidiUartPins>>,
-            midi_out: embedded_midi::MidiOut<uart::Writer<hal::pac::UART0, MidiUartPins>>,
+            midi_in: MidiIn<Reader<UART0, MidiUartPins>>,
+            midi_out: MidiOut<Writer<UART0, MidiUartPins>>,
 
             // alarm for firing display updates
-            display_update_alarm: timer::Alarm0,
+            display_update_alarm: Alarm0,
         }
 
         // RTIC init
@@ -143,7 +167,7 @@ mod microgroove {
         fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
             // release spinlocks to avoid a deadlock after soft-reset
             unsafe {
-                hal::sio::spinlock_reset();
+                sio::spinlock_reset();
             }
 
             // configure source of timestamps for defmt
@@ -154,9 +178,9 @@ mod microgroove {
             let playing = false;
 
             // clock setup for timers and alarms
-            let mut watchdog = hal::Watchdog::new(ctx.device.WATCHDOG);
-            let clocks = hal::clocks::init_clocks_and_plls(
-                rp_pico::XOSC_CRYSTAL_FREQ,
+            let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
+            let clocks = clocks::init_clocks_and_plls(
+                XOSC_CRYSTAL_FREQ,
                 ctx.device.XOSC,
                 ctx.device.CLOCKS,
                 ctx.device.PLL_SYS,
@@ -167,7 +191,7 @@ mod microgroove {
             .ok()
             .expect("init_clocks_and_plls(...) should succeed");
 
-            let mut timer = hal::Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS);
+            let mut timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS);
             
             // create an alarm to update the display regularly
             let mut display_update_alarm = timer.alarm_0().unwrap();
@@ -176,13 +200,13 @@ mod microgroove {
 
             // create a monotonic timer for RTIC
             let monotonic_alarm = timer.alarm_3().unwrap();
-            let monotonic_timer = timer::monotonic::Monotonic::new(timer, monotonic_alarm);
+            let monotonic_timer = Monotonic::new(timer, monotonic_alarm);
 
             // the single-cycle i/o block controls our gpio pins
-            let sio = hal::Sio::new(ctx.device.SIO);
+            let sio = Sio::new(ctx.device.SIO);
 
             // set the pins to their default state
-            let pins = rp_pico::Pins::new(
+            let pins = Pins::new(
                 ctx.device.IO_BANK0,
                 ctx.device.PADS_BANK0,
                 sio.gpio_bank0,
@@ -192,17 +216,17 @@ mod microgroove {
             // put pins for midi into uart mode
             let midi_uart_pins = (
                 // UART TX (characters sent from RP2040) on pin 1 (GPIO0)
-                pins.gpio0.into_mode::<gpio::FunctionUart>(),
+                pins.gpio0.into_mode::<FunctionUart>(),
                 // UART RX (characters received by RP2040) on pin 2 (GPIO1)
-                pins.gpio1.into_mode::<gpio::FunctionUart>(),
+                pins.gpio1.into_mode::<FunctionUart>(),
             );
 
             // configure uart comms settings
-            let mut uart_config_31250_8_N_1 = uart::common_configs::_38400_8_N_1;
-            uart_config_31250_8_N_1.baudrate = fugit::HertzU32::from_raw(31250);
+            let mut uart_config_31250_8_N_1 = common_configs::_38400_8_N_1;
+            uart_config_31250_8_N_1.baudrate = HertzU32::from_raw(31250);
 
             // make a uart peripheral on the given pins
-            let mut midi_uart = uart::UartPeripheral::new(ctx.device.UART0, midi_uart_pins, &mut ctx.device.RESETS)
+            let mut midi_uart = UartPeripheral::new(ctx.device.UART0, midi_uart_pins, &mut ctx.device.RESETS)
                 .enable(
                     uart_config_31250_8_N_1,
                     clocks.peripheral_clock.freq(),
@@ -214,8 +238,8 @@ mod microgroove {
 
             let (midi_reader, midi_writer) = midi_uart.split();
 
-            let midi_in = embedded_midi::MidiIn::new(midi_reader);
-            let midi_out = embedded_midi::MidiOut::new(midi_writer);
+            let midi_in = MidiIn::new(midi_reader);
+            let midi_out = MidiOut::new(midi_writer);
 
             // TODO configure interrupts on button and encoder gpio pins
             // let mut buttons = Vec::<InputPin, 4>::new();
