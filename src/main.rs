@@ -11,21 +11,26 @@ mod microgroove {
 
         pub const DEFAULT_NOTE_LENGTH_24PPQN_TICKS: u8 = 5;
 
+        // type for note lengths, 256ths of a whole note
+        type NoteLength = u32;
+
+        // represent a step in a musical sequence
+        // TODO polyphonic steps - note: Note -> notes: Vec<Note, _>
         #[derive(Clone, Debug)]
         pub struct Step {
-            pub active: bool,
             pub note: Note,
             pub velocity: Value7,
             pub pitch_bend: Value14,
+            pub length: NoteLength,
         }
 
         impl Step {
             pub fn new(note: Note) -> Step {
                 Step {
-                    active: true,
                     note,
                     velocity: 100.into(),
                     pitch_bend: 0u16.into(),
+                    length: 13,
                 }
             }
         }
@@ -39,11 +44,10 @@ mod microgroove {
             Whole = 96
         }
 
-        pub type Sequence = Vec<Step, 32>;
+        pub type Sequence = Vec<Option<Step>, 32>;
 
         #[derive(Debug)]
         pub struct Track {
-            pub active: bool,
             pub speed: TrackSpeed,
             pub midi_channel: Channel,
             pub steps: Sequence,
@@ -52,9 +56,8 @@ mod microgroove {
         impl Track {
             pub fn new() -> Track {
                 let steps = [57, 59, 60, 62, 64, 65, 67, 69, 57, 59, 60, 62, 64, 65, 67, 69]
-                    .map(|note_num| { Step::new(note_num.into()) });
+                    .map(|note_num| { Some(Step::new(note_num.into())) });
                 Track {
-                    active: true,
                     speed: TrackSpeed::Sixteenth,
                     midi_channel: 1.into(),
                     steps: Vec::from_slice(steps.as_slice()).unwrap(),
@@ -70,17 +73,27 @@ mod microgroove {
         use rp_pico::{
             hal::{
                 Clock,
+                I2C,
                 Timer,
                 Watchdog,
                 clocks,
                 gpio::{
                     Function,
+                    FunctionI2C,
                     FunctionUart,
                     Pin,
                     Uart,
-                    pin::bank0::{Gpio0, Gpio1},
+                    pin::bank0::{
+                        Gpio0,
+                        Gpio1,
+                        Gpio26,
+                        Gpio27,
+                    },
                 },
-                pac::UART0,
+                pac::{
+                    I2C1,
+                    UART0,
+                },
                 sio::{
                     self,
                     Sio
@@ -104,6 +117,26 @@ mod microgroove {
             XOSC_CRYSTAL_FREQ,
         };
 
+        // ssd1306 oled display driver
+        use ssd1306::{
+            I2CDisplayInterface,
+            Ssd1306,
+            prelude::*,
+            mode::BufferedGraphicsMode,
+        };
+
+        // graphics
+        use embedded_graphics::{
+            mono_font::{
+                MonoTextStyle,
+                MonoTextStyleBuilder,
+                ascii::FONT_4X6,
+            },
+            pixelcolor::BinaryColor,
+            prelude::*,
+            text::{Baseline, Text},
+        };
+        
         // midi stuff
         use midi_types::MidiMessage;
         use embedded_midi::{MidiIn, MidiOut};
@@ -117,7 +150,10 @@ mod microgroove {
         use defmt_rtt as _;
 
         // alloc-free data structures
-        use heapless::{Vec, HistoryBuffer};
+        use heapless::{Vec, HistoryBuffer, String};
+
+        // Write trait to allow formatting heapless Strings
+        use core::fmt::Write;
 
         // time manipulation
         use fugit::{ExtU32, MicrosDurationU32, RateExtU32};
@@ -136,10 +172,15 @@ mod microgroove {
         type TimerMonotonic = Monotonic<Alarm3>;
         type TimerMonotonicInstant = <TimerMonotonic as RticMonotonic>::Instant;
 
-        // alias the type for our UART pins
-        type MidiInUartPin = Pin<Gpio0, Function<Uart>>;
-        type MidiOutUartPin = Pin<Gpio1, Function<Uart>>;
+        // type alias for our UART pins
+        type MidiInUartPin = Pin<Gpio0, FunctionUart>;
+        type MidiOutUartPin = Pin<Gpio1, FunctionUart>;
         type MidiUartPins = (MidiInUartPin, MidiOutUartPin);
+
+        // type alias for our display pins
+        type DisplaySdaPin = Pin<Gpio26, FunctionI2C>;
+        type DisplaySclPin = Pin<Gpio27, FunctionI2C>;
+        type DisplayPins = (DisplaySdaPin, DisplaySclPin);
 
         // TODO move to UI/input module
         pub enum InputMode {
@@ -160,11 +201,12 @@ mod microgroove {
         #[shared]
         struct Shared {
             // tracks are where we store our sequence data
-            tracks: Vec<Track, 16>,
+            tracks: Vec<Option<Track>, 16>,
 
             // are we playing, or not?
             playing: bool,
 
+            // current page of the UI
             input_mode: InputMode,
         }
 
@@ -174,6 +216,13 @@ mod microgroove {
             // midi ports (2 halves of the split UART)
             midi_in: MidiIn<Reader<UART0, MidiUartPins>>,
             midi_out: MidiOut<Writer<UART0, MidiUartPins>>,
+
+            // display interface
+            display: Ssd1306<
+                I2CInterface<I2C<I2C1, DisplayPins>>,
+                DisplaySize128x64,
+                BufferedGraphicsMode<DisplaySize128x64>
+            >,
 
             // alarm for firing display updates
             display_update_alarm: Alarm0,
@@ -185,7 +234,6 @@ mod microgroove {
 
             // pins for buttons
             // pins for encoders
-            // i2c/display interface
         }
 
         // RTIC init
@@ -217,16 +265,8 @@ mod microgroove {
             .ok()
             .expect("init_clocks_and_plls(...) should succeed");
 
+            // timer for, well, timing
             let mut timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS);
-            
-            // create an alarm to update the display regularly
-            let mut display_update_alarm = timer.alarm_0().unwrap();
-            let _ = display_update_alarm.schedule(DISPLAY_UPDATE_INTERVAL_US);
-            display_update_alarm.enable_interrupt();
-
-            // create a monotonic timer for RTIC
-            let monotonic_alarm = timer.alarm_3().unwrap();
-            let monotonic_timer = Monotonic::new(timer, monotonic_alarm);
 
             // the single-cycle i/o block controls our gpio pins
             let sio = Sio::new(ctx.device.SIO);
@@ -262,6 +302,47 @@ mod microgroove {
 
             let midi_in = MidiIn::new(midi_reader);
             let midi_out = MidiOut::new(midi_writer);
+
+            // DISPLAY
+
+            // configure i2c pins
+            let sda_pin = pins.gpio26.into_mode::<FunctionI2C>();
+            let scl_pin = pins.gpio27.into_mode::<FunctionI2C>();
+
+            // create i2c driver
+            let i2c = I2C::i2c1(
+                ctx.device.I2C1,
+                sda_pin,
+                scl_pin,
+                1.MHz(),
+                &mut ctx.device.RESETS,
+                &clocks.peripheral_clock,
+            );
+
+            // create i2c display interface
+            let mut display = Ssd1306::new(
+                I2CDisplayInterface::new_alternate_address(i2c),
+                DisplaySize128x64,
+                DisplayRotation::Rotate0
+            ).into_buffered_graphics_mode();
+
+            // intialise display
+            display.init().unwrap();
+
+            debug!("init: display initialised");
+
+            // create an alarm to update the display regularly
+            let mut display_update_alarm = timer.alarm_0().unwrap();
+            let _ = display_update_alarm.schedule(DISPLAY_UPDATE_INTERVAL_US);
+            display_update_alarm.enable_interrupt();
+
+            // RTIC Monotonic
+
+            // create a monotonic timer for RTIC
+            let monotonic_alarm = timer.alarm_3().unwrap();
+            let monotonic_timer = Monotonic::new(timer, monotonic_alarm);
+
+            // APP STATE
             
             // create buffer to collect MIDI tick intervals
             let tick_history = HistoryBuffer::<u64, 24>::new();
@@ -275,17 +356,15 @@ mod microgroove {
             //     button.set_interrupt_enabled(EdgeLow, true);
             // }
 
-            // TODO init display
-
             // create some tracks!
             let mut tracks = Vec::new();
             for _ in 0..16 {
-                tracks.push(Track::new()).unwrap();
+                tracks.push(Some(Track::new())).unwrap();
             }
 
             info!("init complete");
 
-            (Shared { input_mode, playing, tracks }, Local { midi_in, midi_out, display_update_alarm, tick_history }, init::Monotonics(monotonic_timer))
+            (Shared { input_mode, playing, tracks }, Local { midi_in, midi_out, display, display_update_alarm, tick_history }, init::Monotonics(monotonic_timer))
         }
 
         #[task(binds = IO_IRQ_BANK0, priority = 4)]
@@ -361,32 +440,60 @@ mod microgroove {
 
             // calculate average interval between last K ticks
             // TODO should move to some impl
-            let mut gate_time = 375.millis();
+            let mut gate_time = 100_000.micros(); // 80% of 1/16th note at 120bpm
             if let Some(last_tick_instant) = *last_tick_instant {
                 let tick_duration = monotonics::now().checked_duration_since(last_tick_instant).unwrap();
                 tick_history.write(tick_duration.to_micros());
                 let avg_tick_duration = tick_history.as_slice().iter().sum::<u64>() / tick_history.len() as u64;
+                debug!("sequencer_advance: avg_tick_duration={}", avg_tick_duration);
+
+                // TODO use step.length
                 let gate_time: MicrosDurationU32 = ((avg_tick_duration * DEFAULT_NOTE_LENGTH_24PPQN_TICKS as u64) as u32).micros();
             }
 
             // TODO should all move out of task, e.g. Tracks::advance()?
             ctx.shared.tracks.lock(|tracks| {
                 for track in tracks.as_slice() {
-                    let step: &Step = &track.steps[*ticks as usize];
-                    let note_on_message = MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
-                    midi_send::spawn(note_on_message).unwrap();
+                    if let Some(track) = track {
+                        if let Some(step) = &track.steps[*ticks as usize] {
+                            let note_on_message = MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
+                            midi_send::spawn(note_on_message).unwrap();
 
-                    let note_off_message = MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
-                    midi_send::spawn_after(gate_time.into(), note_off_message).unwrap();
+                            let note_off_message = MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
+                            debug!("sequencer_advance: scheduling note off message for {}us", gate_time.to_micros());
+                            midi_send::spawn_after(gate_time.into(), note_off_message).unwrap();
+                        }
+                    }
                 }
             });
         }
 
         // timer task to render UI at k FPS
-        #[task(binds = TIMER_IRQ_0, priority = 1, local = [display_update_alarm, display_ticks: u32 = 0])]
+        #[task(binds = TIMER_IRQ_0, priority = 1, local = [display, display_update_alarm, display_ticks: u32 = 0])]
         fn timer_irq_0(ctx: timer_irq_0::Context) {
             *ctx.local.display_ticks += 1;
             debug!("rendering ui, display_ticks={}", ctx.local.display_ticks);
+
+            let mut ticks_string: String<8> = String::new();
+
+            ctx.local.display.clear();
+
+            // define style for text
+            let text_style = MonoTextStyleBuilder::new()
+                .font(&FONT_4X6)
+                .text_color(BinaryColor::On)
+                .build();
+
+            Text::with_baseline("MICROGROOVE", Point::zero(), text_style, Baseline::Top)
+                .draw(&mut *ctx.local.display)
+                .unwrap();
+
+            let _ = write!(ticks_string, "TICKS: {}", *ctx.local.display_ticks);
+            Text::with_baseline(ticks_string.as_str(), Point::new(0, 6), text_style, Baseline::Top)
+                .draw(&mut *ctx.local.display)
+                .unwrap();
+
+            ctx.local.display.flush().unwrap();
 
             ctx.local.display_update_alarm.clear_interrupt();
             let _ = ctx.local.display_update_alarm.schedule(DISPLAY_UPDATE_INTERVAL_US);
