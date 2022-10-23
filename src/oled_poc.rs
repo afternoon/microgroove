@@ -12,7 +12,7 @@
 #![no_main]
 
 // show exit code and print panic message through defmt
-use panic_probe as _;
+use panic_halt as _;
 
 // logging
 use defmt;
@@ -75,8 +75,8 @@ fn main() -> ! {
     );
 
     // setup rotary encoder
-    let pin_a = pins.gpio4.into_pull_up_input();
-    let pin_b = pins.gpio5.into_pull_up_input();
+    let pin_a = pins.gpio9.into_pull_up_input();
+    let pin_b = pins.gpio10.into_pull_up_input();
     let mut enc = Rotary::new(pin_a, pin_b);
 
     // configure i2c pins
