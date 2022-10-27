@@ -65,7 +65,11 @@ mod microgroove {
     }
 
     // RTIC app module
-    #[rtic::app(device = rp_pico::hal::pac, peripherals = true, dispatchers = [I2C0_IRQ, DMA_IRQ_0, DMA_IRQ_1])]
+    #[rtic::app(
+        device = rp_pico::hal::pac,
+        peripherals = true,
+        dispatchers = [I2C0_IRQ, DMA_IRQ_0, DMA_IRQ_1, SPI0_IRQ, SPI1_IRQ, UART1_IRQ]
+    )]
     mod app {
         // hal aliases - turns out we have a big dependency on the hardware 😀
         use rp_pico::{
@@ -332,10 +336,10 @@ mod microgroove {
 
             let encoder0_pin_a = pins.gpio9.into_pull_up_input();
             let encoder0_pin_b = pins.gpio10.into_pull_up_input();
-            encoder0_pin_a.set_interrupt_enabled(EdgeLow, true);
-            encoder0_pin_b.set_interrupt_enabled(EdgeLow, true);
-            encoder0_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            encoder0_pin_b.set_interrupt_enabled(EdgeHigh, true);
+            // encoder0_pin_a.set_interrupt_enabled(EdgeLow, true);
+            // encoder0_pin_b.set_interrupt_enabled(EdgeLow, true);
+            // encoder0_pin_a.set_interrupt_enabled(EdgeHigh, true);
+            // encoder0_pin_b.set_interrupt_enabled(EdgeHigh, true);
             let mut encoder0 = Rotary::new(encoder0_pin_a, encoder0_pin_b);
 
             // let encoder1_pin_a = pins.gpio11.into_pull_up_input();
@@ -472,6 +476,9 @@ mod microgroove {
 
             // LET'S GOOOO!!
 
+            // start reading encoders
+            read_encoders::spawn_after(1.millis()).unwrap();
+
             // start scheduled display updates
             display_update::spawn_after(40.millis()).unwrap();
 
@@ -499,7 +506,12 @@ mod microgroove {
         }
 
         // handles UART0 interrupts, which is MIDI input
-        #[task(binds = UART0_IRQ, priority = 4, shared = [playing], local = [midi_in])]
+        #[task(
+            binds = UART0_IRQ,
+            priority = 4,
+            shared = [playing],
+            local = [midi_in]
+        )]
         fn uart0_irq(mut ctx: uart0_irq::Context) {
             // check midi input for messages
             trace!("a wild uart0 interrupt has fired!");
@@ -547,7 +559,11 @@ mod microgroove {
             }
         }
 
-        #[task(priority = 3, capacity = 64, local = [midi_out])]
+        #[task(
+            priority = 3,
+            capacity = 64,
+            local = [midi_out]
+        )]
         fn midi_send(ctx: midi_send::Context, message: MidiMessage) {
             trace!("midi_send");
             match message {
@@ -572,7 +588,11 @@ mod microgroove {
             ctx.local.midi_out.write(&message).expect("midi_out.write(message) should succeed");
         }
 
-        #[task(priority = 2, shared = [tracks], local = [ticks: u32 = 0, last_tick_instant: Option<TimerMonotonicInstant> = None, tick_history] )]
+        #[task(
+            priority = 2,
+            shared = [tracks],
+            local = [ticks: u32 = 0, last_tick_instant: Option<TimerMonotonicInstant> = None, tick_history]
+        )]
         fn sequencer_advance(mut ctx: sequencer_advance::Context) {
             trace!("sequencer_advance");
 
@@ -627,9 +647,9 @@ mod microgroove {
         // handles GPIO input, which is either a button press or an encoder turn
         #[task(
             binds = IO_IRQ_BANK0,
-            priority = 4,
-            shared = [input_mode, encoder0_pos],
-            local = [button_track_pin, button_groove_pin, button_melody_pin, encoder0]
+            priority = 3,
+            shared = [input_mode],
+            local = [button_track_pin, button_groove_pin, button_melody_pin]
         )]
         fn io_irq_bank0(mut ctx: io_irq_bank0::Context) {
             trace!("a wild gpio_bank0 interrupt has fired!");
@@ -657,32 +677,39 @@ mod microgroove {
                 });
                 ctx.local.button_melody_pin.clear_interrupt(EdgeLow);
             }
-
-            // TODO move this to a 850-1000Hz timer task (every 1_176-1_000us)
-            // for encoders, trigger a param change
-            if ctx.local.encoder0.pin_a().interrupt_status(EdgeLow) || ctx.local.encoder0.pin_a().interrupt_status(EdgeHigh) ||
-                    ctx.local.encoder0.pin_b().interrupt_status(EdgeLow) || ctx.local.encoder0.pin_b().interrupt_status(EdgeHigh) {
-                info!("encoder 0 moved");
-                ctx.shared.encoder0_pos.lock(|encoder0_pos| {
-                    match ctx.local.encoder0.update().unwrap() {
-                        Direction::Clockwise => {
-                            *encoder0_pos += 1;
-                        }
-                        Direction::CounterClockwise => {
-                            *encoder0_pos -= 1;
-                        }
-                        Direction::None => {}
-                    }
-                });
-
-                ctx.local.encoder0.pin_a().clear_interrupt(EdgeLow);
-                ctx.local.encoder0.pin_a().clear_interrupt(EdgeHigh);
-                ctx.local.encoder0.pin_b().clear_interrupt(EdgeLow);
-                ctx.local.encoder0.pin_b().clear_interrupt(EdgeHigh);
-            }
         }
 
-        #[task(priority = 1, shared = [playing, input_mode, encoder0_pos], local = [display, display_ticks: u32 = 0])]
+        #[task(
+            priority = 4,
+            shared = [encoder0_pos],
+            local = [encoder0]
+        )]
+        fn read_encoders(mut ctx: read_encoders::Context) {
+            // check encoders every 1ms to remove some of the noise vs checking on interrupt
+            // TODO trigger param changes
+            ctx.shared.encoder0_pos.lock(|encoder0_pos| {
+                match ctx.local.encoder0.update().unwrap() {
+                    Direction::Clockwise => {
+                        *encoder0_pos += 1;
+                    }
+                    Direction::CounterClockwise => {
+                        *encoder0_pos -= 1;
+                    }
+                    Direction::None => {}
+                }
+            });
+
+            // TODO repeat for encoder[1-5]
+
+            // read again in 1ms
+            read_encoders::spawn_after(1.millis()).unwrap();
+        }
+
+        #[task(
+            priority = 1,
+            shared = [playing, input_mode, encoder0_pos],
+            local = [display, display_ticks: u32 = 0]
+        )]
         fn display_update(mut ctx: display_update::Context) {
             *ctx.local.display_ticks += 1;
             trace!("rendering ui, display_ticks={}", *ctx.local.display_ticks);
