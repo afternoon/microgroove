@@ -68,7 +68,7 @@ mod microgroove {
     #[rtic::app(
         device = rp_pico::hal::pac,
         peripherals = true,
-        dispatchers = [I2C0_IRQ, DMA_IRQ_0, DMA_IRQ_1, SPI0_IRQ, SPI1_IRQ, UART1_IRQ]
+        dispatchers = [USBCTRL_IRQ, DMA_IRQ_0, DMA_IRQ_1, PWM_IRQ_WRAP]
     )]
     mod app {
         // hal aliases - turns out we have a big dependency on the hardware 😀
@@ -82,30 +82,11 @@ mod microgroove {
                 gpio::{
                     FunctionI2C,
                     FunctionUart,
-                    Interrupt::{EdgeLow, EdgeHigh},
+                    Interrupt::EdgeLow,
                     Pin,
+                    DynPin,
                     PullUpInput,
-                    pin::bank0::{
-                        Gpio0,
-                        Gpio1,
-                        Gpio2,
-                        Gpio3,
-                        Gpio4,
-                        Gpio5,
-                        Gpio6,
-                        Gpio7,
-                        Gpio8,
-                        Gpio9,
-                        Gpio10,
-                        Gpio11,
-                        Gpio12,
-                        Gpio13,
-                        Gpio14,
-                        Gpio16,
-                        Gpio17,
-                        Gpio26,
-                        Gpio27,
-                    },
+                    pin::bank0::{Gpio0, Gpio1, Gpio2, Gpio16, Gpio17, Gpio26, Gpio27},
                 },
                 pac::{
                     I2C1,
@@ -116,9 +97,7 @@ mod microgroove {
                     Sio
                 },
                 timer::{
-                    Alarm,
                     Alarm0,
-                    Alarm1,
                     monotonic::Monotonic,
                 },
                 uart::{
@@ -141,6 +120,7 @@ mod microgroove {
         use midi_types::MidiMessage;
         use embedded_midi::{MidiIn, MidiOut};
 
+        use rtic::Mutex;
         // ssd1306 oled display driver
         use ssd1306::{
             I2CDisplayInterface,
@@ -165,7 +145,7 @@ mod microgroove {
 
         // defmt rtt logging (read the logs with cargo embed, etc)
         use defmt;
-        use defmt::{error, warn, info, debug, trace};
+        use defmt::{error, info, debug, trace};
         use defmt_rtt as _;
 
         // alloc-free data structures
@@ -178,19 +158,18 @@ mod microgroove {
         use fugit::{ExtU64, MicrosDurationU64, RateExtU32};
 
         // crate imports
-        use super::sequencer::{
-            Step,
-            Track,
-        };
+        use super::sequencer::Track;
 
-        // display update time is the time between each render
-        // this is the upper bound for the time to flush each frame to the oled
+        // time between each display render
+        // this is the practical upper bound for drawing and flushing a frame to the oled
         // at 40ms, the frame rate will be 25 FPS
         // we want the lowest frame rate that looks acceptable, to provide the largest budget for
         // render times
         // TODO move to UI/input module
-        // TODO actually use this
         const DISPLAY_UPDATE_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(40);
+
+        // how often to poll encoders for position updates
+        const ENCODER_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(1);
 
         // monotonic clock for RTIC and defmt
         #[monotonic(binds = TIMER_IRQ_0, default = true)]
@@ -212,21 +191,8 @@ mod microgroove {
         type ButtonGroovePin = Pin<Gpio1, PullUpInput>;
         type ButtonMelodyPin = Pin<Gpio2, PullUpInput>;
 
-        // type alias for encoder pins
-        type Encoder0PinA = Pin<Gpio9, PullUpInput>;
-        type Encoder0PinB = Pin<Gpio10, PullUpInput>;
-        type Encoder0 = Rotary<Encoder0PinA, Encoder0PinB>;
-        type Encoder1PinA = Pin<Gpio11, PullUpInput>;
-        type Encoder1PinB = Pin<Gpio12, PullUpInput>;
-        type Encoder2PinA = Pin<Gpio13, PullUpInput>;
-        type Encoder2PinB = Pin<Gpio14, PullUpInput>;
-
-        type Encoder3PinA = Pin<Gpio3, PullUpInput>;
-        type Encoder3PinB = Pin<Gpio4, PullUpInput>;
-        type Encoder4PinA = Pin<Gpio5, PullUpInput>;
-        type Encoder4PinB = Pin<Gpio6, PullUpInput>;
-        type Encoder5PinA = Pin<Gpio7, PullUpInput>;
-        type Encoder5PinB = Pin<Gpio8, PullUpInput>;
+        // type alias for encoder bound to some pins - pin state not checked
+        type AnyEncoder = Rotary<DynPin, DynPin>;
 
         // TODO move to UI/input module
         pub enum InputMode {
@@ -245,7 +211,12 @@ mod microgroove {
             input_mode: InputMode,
 
             // encoder positions
-            encoder0_pos: i32,
+            encoder0_pos: i8,
+            encoder1_pos: i8,
+            encoder2_pos: i8,
+            encoder3_pos: i8,
+            encoder4_pos: i8,
+            encoder5_pos: i8,
 
             // tracks are where we store our sequence data
             tracks: Vec<Option<Track>, 16>,
@@ -271,7 +242,12 @@ mod microgroove {
             button_melody_pin: ButtonMelodyPin,
 
             // encoders
-            encoder0: Encoder0,
+            encoder0: AnyEncoder,
+            encoder1: AnyEncoder,
+            encoder2: AnyEncoder,
+            encoder3: AnyEncoder,
+            encoder4: AnyEncoder,
+            encoder5: AnyEncoder,
 
             // a buffer to track the intervals between MIDI ticks, which we can 
             // use to estimate the tempo, we can then use our tempo estimate to 
@@ -291,8 +267,22 @@ mod microgroove {
 
             // DEVICE SETUP
 
-            // I don't know what these are, but they are REQUIRED MAGIC
-            let mut resets = ctx.device.RESETS;
+            // clock setup for timers and alarms
+            let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
+            let clocks = clocks::init_clocks_and_plls(
+                XOSC_CRYSTAL_FREQ,
+                ctx.device.XOSC,
+                ctx.device.CLOCKS,
+                ctx.device.PLL_SYS,
+                ctx.device.PLL_USB,
+                &mut ctx.device.RESETS,
+                &mut watchdog,
+            )
+            .ok()
+            .expect("init_clocks_and_plls(...) should succeed");
+
+            // timer for, well, timing
+            let mut timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS);
 
             // the single-cycle i/o block controls our gpio pins
             let sio = Sio::new(ctx.device.SIO);
@@ -302,25 +292,8 @@ mod microgroove {
                 ctx.device.IO_BANK0,
                 ctx.device.PADS_BANK0,
                 sio.gpio_bank0,
-                &mut resets,
+                &mut ctx.device.RESETS,
             );
-
-            // clock setup for timers and alarms
-            let mut watchdog = Watchdog::new(ctx.device.WATCHDOG);
-            let clocks = clocks::init_clocks_and_plls(
-                XOSC_CRYSTAL_FREQ,
-                ctx.device.XOSC,
-                ctx.device.CLOCKS,
-                ctx.device.PLL_SYS,
-                ctx.device.PLL_USB,
-                &mut resets,
-                &mut watchdog,
-            )
-            .ok()
-            .expect("init_clocks_and_plls(...) should succeed");
-
-            // timer for, well, timing
-            let mut timer = Timer::new(ctx.device.TIMER, &mut resets);
 
             // BUTTONS
 
@@ -334,53 +307,12 @@ mod microgroove {
 
             // // ENCODERS
 
-            let encoder0_pin_a = pins.gpio9.into_pull_up_input();
-            let encoder0_pin_b = pins.gpio10.into_pull_up_input();
-            // encoder0_pin_a.set_interrupt_enabled(EdgeLow, true);
-            // encoder0_pin_b.set_interrupt_enabled(EdgeLow, true);
-            // encoder0_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            // encoder0_pin_b.set_interrupt_enabled(EdgeHigh, true);
-            let mut encoder0 = Rotary::new(encoder0_pin_a, encoder0_pin_b);
-
-            // let encoder1_pin_a = pins.gpio11.into_pull_up_input();
-            // let encoder1_pin_b = pins.gpio12.into_pull_up_input();
-            // encoder1_pin_a.set_interrupt_enabled(EdgeLow, true);
-            // encoder1_pin_b.set_interrupt_enabled(EdgeLow, true);
-            // encoder1_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            // encoder1_pin_b.set_interrupt_enabled(EdgeHigh, true);
-            // let mut encoder1 = Rotary::new(encoder1_pin_a, encoder1_pin_b);
-
-            // let encoder2_pin_a = pins.gpio13.into_pull_up_input();
-            // let encoder2_pin_b = pins.gpio14.into_pull_up_input();
-            // encoder2_pin_a.set_interrupt_enabled(EdgeLow, true);
-            // encoder2_pin_b.set_interrupt_enabled(EdgeLow, true);
-            // encoder2_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            // encoder2_pin_b.set_interrupt_enabled(EdgeHigh, true);
-            // let mut encoder2 = Rotary::new(encoder2_pin_a, encoder2_pin_b);
-
-            // let encoder3_pin_a = pins.gpio3.into_pull_up_input();
-            // let encoder3_pin_b = pins.gpio4.into_pull_up_input();
-            // encoder3_pin_a.set_interrupt_enabled(EdgeLow, true);
-            // encoder3_pin_b.set_interrupt_enabled(EdgeLow, true);
-            // encoder3_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            // encoder3_pin_b.set_interrupt_enabled(EdgeHigh, true);
-            // let mut encoder3 = Rotary::new(encoder3_pin_a, encoder3_pin_b);
-
-            // let encoder4_pin_a = pins.gpio5.into_pull_up_input();
-            // let encoder4_pin_b = pins.gpio6.into_pull_up_input();
-            // encoder4_pin_a.set_interrupt_enabled(EdgeLow, true);
-            // encoder4_pin_b.set_interrupt_enabled(EdgeLow, true);
-            // encoder4_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            // encoder4_pin_b.set_interrupt_enabled(EdgeHigh, true);
-            // let mut encoder4 = Rotary::new(encoder4_pin_a, encoder4_pin_b);
-
-            // let encoder5_pin_a = pins.gpio7.into_pull_up_input();
-            // let encoder5_pin_b = pins.gpio8.into_pull_up_input();
-            // encoder5_pin_a.set_interrupt_enabled(EdgeLow, true);
-            // encoder5_pin_b.set_interrupt_enabled(EdgeLow, true);
-            // encoder5_pin_a.set_interrupt_enabled(EdgeHigh, true);
-            // encoder5_pin_b.set_interrupt_enabled(EdgeHigh, true);
-            // let mut encoder5 = Rotary::new(encoder5_pin_a, encoder5_pin_b);
+            let encoder0 = Rotary::new(pins.gpio9.into_pull_up_input().into(), pins.gpio10.into_pull_up_input().into());
+            let encoder1 = Rotary::new(pins.gpio11.into_pull_up_input().into(), pins.gpio12.into_pull_up_input().into());
+            let encoder2 = Rotary::new(pins.gpio13.into_pull_up_input().into(), pins.gpio14.into_pull_up_input().into());
+            let encoder3 = Rotary::new(pins.gpio3.into_pull_up_input().into(), pins.gpio4.into_pull_up_input().into());
+            let encoder4 = Rotary::new(pins.gpio5.into_pull_up_input().into(), pins.gpio6.into_pull_up_input().into());
+            let encoder5 = Rotary::new(pins.gpio7.into_pull_up_input().into(), pins.gpio8.into_pull_up_input().into());
 
             // MIDI
 
@@ -392,7 +324,7 @@ mod microgroove {
 
             // make a uart peripheral on the given pins
             let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
-            let mut midi_uart = UartPeripheral::new(ctx.device.UART0, midi_uart_pins, &mut resets)
+            let mut midi_uart = UartPeripheral::new(ctx.device.UART0, midi_uart_pins, &mut ctx.device.RESETS)
                 .enable(uart_config, clocks.peripheral_clock.freq())
                 .expect("midi_uart.enable(...) should succeed");
 
@@ -416,7 +348,7 @@ mod microgroove {
                 sda_pin,
                 scl_pin,
                 1.MHz(),
-                &mut resets,
+                &mut ctx.device.RESETS,
                 &clocks.peripheral_clock,
             );
 
@@ -466,6 +398,11 @@ mod microgroove {
 
             // initial encoder positions
             let encoder0_pos = 0;
+            let encoder1_pos = 1;
+            let encoder2_pos = 2;
+            let encoder3_pos = 3;
+            let encoder4_pos = 4;
+            let encoder5_pos = 5;
 
             // create a track
             let mut tracks = Vec::new();
@@ -477,10 +414,10 @@ mod microgroove {
             // LET'S GOOOO!!
 
             // start reading encoders
-            read_encoders::spawn_after(1.millis()).unwrap();
+            read_encoders::spawn().unwrap();
 
             // start scheduled display updates
-            display_update::spawn_after(40.millis()).unwrap();
+            display_update::spawn().unwrap();
 
             info!("init: complete 🤘");
 
@@ -489,6 +426,11 @@ mod microgroove {
                     input_mode,
                     playing,
                     encoder0_pos,
+                    encoder1_pos,
+                    encoder2_pos,
+                    encoder3_pos,
+                    encoder4_pos,
+                    encoder5_pos,
                     tracks,
                 },
                 Local {
@@ -499,6 +441,11 @@ mod microgroove {
                     button_groove_pin,
                     button_melody_pin,
                     encoder0,
+                    encoder1,
+                    encoder2,
+                    encoder3,
+                    encoder4,
+                    encoder5,
                     tick_history,
                 },
                 init::Monotonics(monotonic_timer)
@@ -577,10 +524,9 @@ mod microgroove {
                     let velocity: u8 = velocity.into();
                     debug!("midi_send: note on midi_channel={} note={} velocity={}", midi_channel, note, velocity);
                 }
-                MidiMessage::NoteOff(midi_channel, note, velocity) => {
+                MidiMessage::NoteOff(midi_channel, note, _velocity) => {
                     let midi_channel: u8 = midi_channel.into();
                     let note: u8 = note.into();
-                    let velocity: u8 = velocity.into();
                     debug!("midi_send: note off midi_channel={} note={}", midi_channel, note);
                 }
                 _ => trace!("midi: UNKNOWN"),
@@ -644,17 +590,16 @@ mod microgroove {
             *ticks += 1; // will overflow after a few years of continuous play
         }
 
-        // handles GPIO input, which is either a button press or an encoder turn
+        // handle button pin interrupts
         #[task(
             binds = IO_IRQ_BANK0,
-            priority = 3,
+            priority = 4,
             shared = [input_mode],
             local = [button_track_pin, button_groove_pin, button_melody_pin]
         )]
         fn io_irq_bank0(mut ctx: io_irq_bank0::Context) {
             trace!("a wild gpio_bank0 interrupt has fired!");
 
-            // TODO WTF aren't these working any more??
             // for each button, check interrupt status to see if we fired
             if ctx.local.button_track_pin.interrupt_status(EdgeLow) {
                 info!("track button pressed");
@@ -679,30 +624,40 @@ mod microgroove {
             }
         }
 
+        /// Check encoders every 1ms to remove some of the noise vs checking on interrupt.
         #[task(
             priority = 4,
-            shared = [encoder0_pos],
-            local = [encoder0]
+            shared = [encoder0_pos, encoder1_pos, encoder2_pos, encoder3_pos, encoder4_pos, encoder5_pos],
+            local = [encoder0, encoder1, encoder2, encoder3, encoder4, encoder5],
         )]
-        fn read_encoders(mut ctx: read_encoders::Context) {
-            // check encoders every 1ms to remove some of the noise vs checking on interrupt
-            // TODO trigger param changes
-            ctx.shared.encoder0_pos.lock(|encoder0_pos| {
-                match ctx.local.encoder0.update().unwrap() {
-                    Direction::Clockwise => {
-                        *encoder0_pos += 1;
-                    }
-                    Direction::CounterClockwise => {
-                        *encoder0_pos -= 1;
-                    }
-                    Direction::None => {}
-                }
-            });
-
-            // TODO repeat for encoder[1-5]
+        fn read_encoders(ctx: read_encoders::Context) {
+            let (l, mut s) = (ctx.local, ctx.shared);
+            update_encoder_pos(l.encoder0, &mut s.encoder0_pos);
+            update_encoder_pos(l.encoder1, &mut s.encoder1_pos);
+            update_encoder_pos(l.encoder2, &mut s.encoder2_pos);
+            update_encoder_pos(l.encoder3, &mut s.encoder3_pos);
+            update_encoder_pos(l.encoder4, &mut s.encoder4_pos);
+            update_encoder_pos(l.encoder5, &mut s.encoder5_pos);
 
             // read again in 1ms
-            read_encoders::spawn_after(1.millis()).unwrap();
+            read_encoders::spawn_after(ENCODER_READ_INTERVAL).unwrap();
+        }
+
+        fn update_encoder_pos(encoder: &mut AnyEncoder, mut encoder_pos: impl Mutex<T = i8>) {
+            match encoder.update() {
+                Ok(Direction::Clockwise) => {
+                    encoder_pos.lock(|pos| {
+                        *pos += 1;
+                    });
+                }
+                Ok(Direction::CounterClockwise) => {
+                    encoder_pos.lock(|pos| {
+                        *pos -= 1;
+                    });
+                }
+                Ok(Direction::None) => {}
+                Err(_error) => { error!("could not update encoder"); }
+            }
         }
 
         #[task(
@@ -712,7 +667,6 @@ mod microgroove {
         )]
         fn display_update(mut ctx: display_update::Context) {
             *ctx.local.display_ticks += 1;
-            trace!("rendering ui, display_ticks={}", *ctx.local.display_ticks);
 
             ctx.local.display.clear();
 
@@ -755,7 +709,7 @@ mod microgroove {
 
             ctx.local.display.flush().unwrap();
 
-            display_update::spawn_after(40.millis()).expect("should be able to spawn_after display_update");
+            display_update::spawn_after(DISPLAY_UPDATE_INTERVAL).expect("should be able to spawn_after display_update");
         }
 
         // idle task needed in debug mode, default RTIC idle task calls wfi(), which breaks rtt
