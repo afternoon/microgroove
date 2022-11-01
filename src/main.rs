@@ -94,6 +94,7 @@ mod microgroove {
                     Pin, PullUpInput,
                 },
                 pac::{I2C1, UART0},
+                rosc::RingOscillator,
                 sio::{self, Sio},
                 timer::{monotonic::Monotonic, Alarm0},
                 uart::{DataBits, Reader, StopBits, UartConfig, UartPeripheral, Writer},
@@ -139,6 +140,9 @@ mod microgroove {
 
         // Write trait to allow formatting heapless Strings
         use core::fmt::Write;
+
+        // trait to generate random numbers
+        use rand_core::RngCore;
 
         // time manipulation
         use fugit::{ExtU64, MicrosDurationU64, RateExtU32};
@@ -258,7 +262,7 @@ mod microgroove {
                 &mut watchdog,
             )
             .ok()
-            .expect("init_clocks_and_plls(...) should succeed");
+            .expect("init: init_clocks_and_plls(...) should succeed");
 
             // timer for, well, timing
             let mut timer = Timer::new(ctx.device.TIMER, &mut ctx.device.RESETS);
@@ -273,6 +277,14 @@ mod microgroove {
                 sio.gpio_bank0,
                 &mut ctx.device.RESETS,
             );
+
+            // RANDOMNESS
+
+            let mut rosc = RingOscillator::new(ctx.device.ROSC).initialize();
+            let mut bytes: [u8; 2] = [0, 0];
+            rosc.fill_bytes(&mut bytes);
+            let rand_u16: u16 = (bytes[0] as u16) << 8 | (bytes[1] as u16);
+            info!("init: rand_u16 is {}", rand_u16);
 
             // BUTTONS
 
@@ -324,7 +336,7 @@ mod microgroove {
             let mut midi_uart =
                 UartPeripheral::new(ctx.device.UART0, midi_uart_pins, &mut ctx.device.RESETS)
                     .enable(uart_config, clocks.peripheral_clock.freq())
-                    .expect("midi_uart.enable(...) should succeed");
+                    .expect("init: midi_uart.enable(...) should succeed");
 
             // configure uart interrupt to fire on midi input
             midi_uart.enable_rx_interrupt();
