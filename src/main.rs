@@ -120,7 +120,6 @@ mod microgroove {
         use midi_types::MidiMessage;
         use embedded_midi::{MidiIn, MidiOut};
 
-        use rtic::Mutex;
         // ssd1306 oled display driver
         use ssd1306::{
             I2CDisplayInterface,
@@ -142,6 +141,9 @@ mod microgroove {
         
         // non-blocking io
         use nb::block;
+
+        // rtic Mutex trait for passing shared resources to functions
+        use rtic::Mutex;
 
         // defmt rtt logging (read the logs with cargo embed, etc)
         use defmt;
@@ -299,13 +301,13 @@ mod microgroove {
 
             // configure interrupts on button and encoder GPIO pins
             let button_track_pin = pins.gpio0.into_pull_up_input();
-            button_track_pin.set_interrupt_enabled(EdgeLow, true);
             let button_groove_pin = pins.gpio1.into_pull_up_input();
-            button_groove_pin.set_interrupt_enabled(EdgeLow, true);
             let button_melody_pin = pins.gpio2.into_pull_up_input();
+            button_track_pin.set_interrupt_enabled(EdgeLow, true);
+            button_groove_pin.set_interrupt_enabled(EdgeLow, true);
             button_melody_pin.set_interrupt_enabled(EdgeLow, true);
 
-            // // ENCODERS
+            // ENCODERS
 
             let encoder0 = Rotary::new(pins.gpio9.into_pull_up_input().into(), pins.gpio10.into_pull_up_input().into());
             let encoder1 = Rotary::new(pins.gpio11.into_pull_up_input().into(), pins.gpio12.into_pull_up_input().into());
