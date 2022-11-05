@@ -170,7 +170,7 @@ mod microgroove {
         // graphics APIs
         use embedded_graphics::{
             mono_font::{
-                ascii::{FONT_4X6, FONT_8X13_ITALIC},
+                ascii::FONT_8X13_ITALIC,
                 MonoTextStyleBuilder,
             },
             pixelcolor::BinaryColor,
@@ -254,7 +254,7 @@ mod microgroove {
             sequencer::Track
         };
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Copy, Debug)]
         pub enum InputMode {
             Track,
             Rhythm,
@@ -279,13 +279,12 @@ mod microgroove {
                 clocks,
                 gpio::{
                     pin::bank0::{Gpio0, Gpio1, Gpio16, Gpio17, Gpio2, Gpio26, Gpio27},
-                    DynPin, FunctionI2C, FunctionUart,
+                    FunctionI2C, FunctionUart,
                     Interrupt::EdgeLow,
                     Pin, PullUpInput,
                 },
                 pac::{I2C1, UART0, Peripherals as PacPeripherals},
-                rosc::RingOscillator,
-                sio::{self, Sio},
+                sio::Sio,
                 timer::{monotonic::Monotonic, Alarm0},
                 uart::{DataBits, Reader, StopBits, UartConfig, UartPeripheral, Writer},
                 Clock, Timer, Watchdog, I2C,
@@ -297,7 +296,7 @@ mod microgroove {
         use fugit::RateExtU32;
         use super::encoder::{
             encoder_array::EncoderArray,
-            positional_encoder::PositionalEncoder
+            positional_encoder::PositionalEncoder,
         };
 
         // type alias for UART pins
@@ -325,131 +324,141 @@ mod microgroove {
         pub type ButtonTrackPin = Pin<Gpio0, PullUpInput>;
         pub type ButtonRhythmPin = Pin<Gpio1, PullUpInput>;
         pub type ButtonMelodyPin = Pin<Gpio2, PullUpInput>;
+        type ButtonArray = (ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin);
 
         pub struct Peripherals {
-            device: & 'static PacPeripherals,
-            pins: Pins,
-            peripheral_clock: PeripheralClock,
+            pub monotonic_timer: Monotonic<Alarm0>,
+            pub midi_in: MidiIn,
+            pub midi_out: MidiOut,
+            pub display: Display,
+            pub buttons: ButtonArray,
+            pub encoders: EncoderArray,
         }
 
         impl Peripherals {
-            pub fn new(device: &PacPeripherals) -> Peripherals {
+            pub fn new(device: &mut PacPeripherals) -> Peripherals {
+                let pins = pins(device);
+                let peripheral_clock = peripheral_clock(device);
+                let (midi_in, midi_out) = midi_in_out(device, &pins, &peripheral_clock);
                 Peripherals {
-                    device,
-                    pins: Self::pins(device),
-                    peripheral_clock: Self::peripheral_clock(device),
+                    monotonic_timer: monotonic_timer(device),
+                    midi_in,
+                    midi_out,
+                    display: display(device, &pins, &peripheral_clock),
+                    buttons: buttons(device, &pins),
+                    encoders: encoders(device, &pins),
                 }
             }
+        }
 
-            fn pins(device: &PacPeripherals) -> Pins {
-                let sio = Sio::new(device.SIO);
-                Pins::new(
-                    device.IO_BANK0,
-                    device.PADS_BANK0,
-                    sio.gpio_bank0,
-                    &mut device.RESETS,
-                )
-            }
+        fn pins(device: &mut PacPeripherals) -> Pins {
+            let sio = Sio::new(device.SIO);
+            Pins::new(
+                device.IO_BANK0,
+                device.PADS_BANK0,
+                sio.gpio_bank0,
+                &mut device.RESETS,
+            )
+        }
 
-            fn peripheral_clock(device: &PacPeripherals) -> PeripheralClock {
-                let mut watchdog = Watchdog::new(device.WATCHDOG);
-                let clocks = clocks::init_clocks_and_plls(
-                    XOSC_CRYSTAL_FREQ,
-                    device.XOSC,
-                    device.CLOCKS,
-                    device.PLL_SYS,
-                    device.PLL_USB,
-                    &mut device.RESETS,
-                    &mut watchdog,
-                )
-                .ok()
-                .expect("init: init_clocks_and_plls(...) should succeed");
-                clocks.peripheral_clock
-            }
+        fn peripheral_clock(device: &mut PacPeripherals) -> PeripheralClock {
+            let mut watchdog = Watchdog::new(device.WATCHDOG);
+            let clocks = clocks::init_clocks_and_plls(
+                XOSC_CRYSTAL_FREQ,
+                device.XOSC,
+                device.CLOCKS,
+                device.PLL_SYS,
+                device.PLL_USB,
+                &mut device.RESETS,
+                &mut watchdog,
+            )
+            .ok()
+            .expect("init: init_clocks_and_plls(...) should succeed");
+            clocks.peripheral_clock
+        }
 
-            pub fn monotonic_timer(&self) -> Monotonic<Alarm0> {
-                let mut timer = Timer::new(self.device.TIMER, &mut self.device.RESETS);
-                let monotonic_alarm = timer.alarm_0().unwrap();
-                Monotonic::new(timer, monotonic_alarm)
-            }
+        fn monotonic_timer(device: &mut PacPeripherals) -> Monotonic<Alarm0> {
+            let mut timer = Timer::new(device.TIMER, &mut device.RESETS);
+            let monotonic_alarm = timer.alarm_0().unwrap();
+            Monotonic::new(timer, monotonic_alarm)
+        }
 
-            pub fn midi_in_out(&self) -> (MidiIn, MidiOut) {
-                // put pins for midi into uart mode
-                let midi_uart_pins = (
-                    self.pins.gpio16.into_mode::<FunctionUart>(),
-                    self.pins.gpio17.into_mode::<FunctionUart>(),
-                );
+        fn midi_in_out(device: &mut PacPeripherals, pins: &Pins, peripheral_clock: &PeripheralClock) -> (MidiIn, MidiOut) {
+            // put pins for midi into uart mode
+            let midi_uart_pins = (
+                pins.gpio16.into_mode::<FunctionUart>(),
+                pins.gpio17.into_mode::<FunctionUart>(),
+            );
 
-                // make a uart peripheral on the given pins
-                let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
-                let mut midi_uart =
-                    UartPeripheral::new(self.device.UART0, midi_uart_pins, &mut self.device.RESETS)
-                        .enable(uart_config, self.peripheral_clock.freq())
-                        .expect("enabling uart for midi should succeed");
+            // make a uart peripheral on the given pins
+            let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
+            let mut midi_uart =
+                UartPeripheral::new(device.UART0, midi_uart_pins, &mut device.RESETS)
+                    .enable(uart_config, peripheral_clock.freq())
+                    .expect("enabling uart for midi should succeed");
 
-                // configure uart interrupt to fire on midi input
-                midi_uart.enable_rx_interrupt();
+            // configure uart interrupt to fire on midi input
+            midi_uart.enable_rx_interrupt();
 
-                // split the uart into rx and tx channels 
-                let (midi_reader, midi_writer) = midi_uart.split();
-                //
-                // create MidiIn/Out interfaces
-                (EmbeddedMidiIn::new(midi_reader), EmbeddedMidiOut::new(midi_writer))
-            }
+            // split the uart into rx and tx channels 
+            let (midi_reader, midi_writer) = midi_uart.split();
+            //
+            // create MidiIn/Out interfaces
+            (EmbeddedMidiIn::new(midi_reader), EmbeddedMidiOut::new(midi_writer))
+        }
 
-            pub fn display(&self) -> Display {
-                // configure i2c pins
-                let sda_pin = self.pins.gpio26.into_mode::<FunctionI2C>();
-                let scl_pin = self.pins.gpio27.into_mode::<FunctionI2C>();
+        fn display(device: &mut PacPeripherals, pins: &Pins, peripheral_clock: &PeripheralClock) -> Display {
+            // configure i2c pins
+            let sda_pin = pins.gpio26.into_mode::<FunctionI2C>();
+            let scl_pin = pins.gpio27.into_mode::<FunctionI2C>();
 
-                // create i2c driver
-                let i2c = I2C::i2c1(
-                    self.device.I2C1,
-                    sda_pin,
-                    scl_pin,
-                    1.MHz(),
-                    &mut self.device.RESETS,
-                    &self.peripheral_clock,
-                );
+            // create i2c driver
+            let i2c = I2C::i2c1(
+                device.I2C1,
+                sda_pin,
+                scl_pin,
+                1.MHz(),
+                &mut device.RESETS,
+                peripheral_clock,
+            );
 
-                // configure pins
-                let sda_pin: DisplaySdaPin = sda_pin.try_into().expect("should be able to convert SDA pin into a DisplaySdaPin");
-                let scl_pin: DisplaySclPin = scl_pin.try_into().expect("should be able to convert SCL pin into a DisplaySclPin");
+            // configure pins
+            let sda_pin: DisplaySdaPin = sda_pin.try_into().expect("should be able to convert SDA pin into a DisplaySdaPin");
+            let scl_pin: DisplaySclPin = scl_pin.try_into().expect("should be able to convert SCL pin into a DisplaySclPin");
 
-                // create i2c display interface
-                let mut display = Ssd1306::new(
-                    I2CDisplayInterface::new_alternate_address(i2c),
-                    DisplaySize128x64,
-                    DisplayRotation::Rotate0,
-                )
-                .into_buffered_graphics_mode();
+            // create i2c display interface
+            let mut display = Ssd1306::new(
+                I2CDisplayInterface::new_alternate_address(i2c),
+                DisplaySize128x64,
+                DisplayRotation::Rotate0,
+            )
+            .into_buffered_graphics_mode();
 
-                // intialise display
-                display.init().expect("init: display initialisation failed");
+            // intialise display
+            display.init().expect("init: display initialisation failed");
 
-                display
-            }
+            display
+        }
+    
+        pub fn buttons(device: &mut PacPeripherals, pins: &Pins) -> ButtonArray {
+            let button_track_pin = pins.gpio0.into_pull_up_input();
+            let button_rhythm_pin = pins.gpio1.into_pull_up_input();
+            let button_melody_pin = pins.gpio2.into_pull_up_input();
+            button_track_pin.set_interrupt_enabled(EdgeLow, true);
+            button_rhythm_pin.set_interrupt_enabled(EdgeLow, true);
+            button_melody_pin.set_interrupt_enabled(EdgeLow, true);
+            (button_track_pin, button_rhythm_pin, button_melody_pin)
+        }
         
-            pub fn buttons(&self) -> (ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin) {
-                let button_track_pin = self.pins.gpio0.into_pull_up_input();
-                let button_rhythm_pin = self.pins.gpio1.into_pull_up_input();
-                let button_melody_pin = self.pins.gpio2.into_pull_up_input();
-                button_track_pin.set_interrupt_enabled(EdgeLow, true);
-                button_rhythm_pin.set_interrupt_enabled(EdgeLow, true);
-                button_melody_pin.set_interrupt_enabled(EdgeLow, true);
-                (button_track_pin, button_rhythm_pin, button_melody_pin)
-            }
-            
-            pub fn encoders(&self) -> EncoderArray {
-                let mut encoders = Vec::new();
-                encoders.push(PositionalEncoder::new(self.pins.gpio9.into(), self.pins.gpio10.into()));
-                encoders.push(PositionalEncoder::new(self.pins.gpio11.into(), self.pins.gpio12.into()));
-                encoders.push(PositionalEncoder::new(self.pins.gpio13.into(), self.pins.gpio14.into()));
-                encoders.push(PositionalEncoder::new(self.pins.gpio3.into(), self.pins.gpio4.into()));
-                encoders.push(PositionalEncoder::new(self.pins.gpio5.into(), self.pins.gpio6.into()));
-                encoders.push(PositionalEncoder::new(self.pins.gpio7.into(), self.pins.gpio8.into()));
-                EncoderArray::new(encoders)
-            }
+        pub fn encoders(device: &mut PacPeripherals, pins: &Pins) -> EncoderArray {
+            let mut encoders = Vec::new();
+            encoders.push(PositionalEncoder::new(pins.gpio9.into(), pins.gpio10.into()));
+            encoders.push(PositionalEncoder::new(pins.gpio11.into(), pins.gpio12.into()));
+            encoders.push(PositionalEncoder::new(pins.gpio13.into(), pins.gpio14.into()));
+            encoders.push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into()));
+            encoders.push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into()));
+            encoders.push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into()));
+            EncoderArray::new(encoders)
         }
     }
 
@@ -543,9 +552,8 @@ mod microgroove {
             }
 
             // create a device wrapper instance and grab some of the peripherals we need
-            let periph = Peripherals::new(&ctx.device);
-            let (midi_in, midi_out) = periph.midi_in_out();
-            let (button_track_pin, button_rhythm_pin, button_melody_pin) = periph.buttons();
+            let periph = Peripherals::new(&mut ctx.device);
+            let (button_track_pin, button_rhythm_pin, button_melody_pin) = periph.buttons;
 
             info!("[init] spawning tasks");
 
@@ -562,18 +570,18 @@ mod microgroove {
                     playing: false,
                     input_mode: InputMode::Track,
                     tracks,
-                    current_track: &tracks[0],
+                    current_track: &mut tracks[0],
                 },
                 Local {
-                    midi_in,
-                    midi_out,
-                    display: periph.display(),
+                    midi_in: periph.midi_in,
+                    midi_out: periph.midi_out,
+                    display: periph.display,
                     button_track_pin,
                     button_rhythm_pin,
                     button_melody_pin,
-                    encoders: periph.encoders(),
+                    encoders: periph.encoders,
                 },
-                init::Monotonics(periph.monotonic_timer()),
+                init::Monotonics(periph.monotonic_timer),
             )
         }
 
@@ -698,7 +706,7 @@ mod microgroove {
         fn read_encoders(ctx: read_encoders::Context) {
             if let Some(_changes) = ctx.local.encoders.update() {
                 (ctx.shared.current_track, ctx.shared.input_mode).lock(|current_track, input_mode| {
-                    input::map_encoder_input(current_track, *input_mode, ctx.local.encoders.take_values());
+                    input::map_encoder_input(*current_track, *input_mode, ctx.local.encoders.take_values());
                 })
             }
         }
