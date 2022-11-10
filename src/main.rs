@@ -200,7 +200,7 @@ mod microgroove {
             display.flush().unwrap();
         }
 
-        pub fn render(display: &Display, track: &Option<Track>, input_mode: InputMode, playing: bool) {
+        pub fn render(display: &Display, track: &mut Option<Track>, input_mode: InputMode, playing: bool) {
             if track.is_none() {
                 show_disabled_track_warning();
                 return;
@@ -263,7 +263,7 @@ mod microgroove {
 
         /// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
         /// `MelodyMachine`, determined by `input_mode`.
-        pub fn map_encoder_input(track: &mut Option<Track>, input_mode: InputMode, encoder_values: Vec<i32, ENCODER_COUNT>) {
+        pub fn map_encoder_input(input_mode: InputMode, track: &mut Option<Track>, encoder_values: Vec<i32, ENCODER_COUNT>) {
             if track.is_none() {
                 track.replace(Track::new());
             }
@@ -283,7 +283,7 @@ mod microgroove {
                     Interrupt::EdgeLow,
                     Pin, PullUpInput,
                 },
-                pac::{I2C1, UART0, Peripherals as PacPeripherals},
+                pac::{self, I2C1, UART0},
                 sio::Sio,
                 timer::{monotonic::Monotonic, Alarm0},
                 uart::{DataBits, Reader, StopBits, UartConfig, UartPeripheral, Writer},
@@ -326,107 +326,60 @@ mod microgroove {
         pub type ButtonMelodyPin = Pin<Gpio2, PullUpInput>;
         type ButtonArray = (ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin);
 
-        pub struct Peripherals {
-            pub monotonic_timer: Monotonic<Alarm0>,
-            pub midi_in: MidiIn,
-            pub midi_out: MidiOut,
-            pub display: Display,
-            pub buttons: ButtonArray,
-            pub encoders: EncoderArray,
-        }
+        pub fn setup(mut pac: pac::Peripherals) -> (Monotonic<Alarm0>, MidiIn, MidiOut, Display, ButtonArray, EncoderArray) {
+            // setup gpio pins
+            let sio = Sio::new(pac.SIO);
+            let pins = Pins::new(pac.IO_BANK0, pac.PADS_BANK0, sio.gpio_bank0, &mut pac.RESETS);
 
-        impl Peripherals {
-            pub fn new(device: &mut PacPeripherals) -> Peripherals {
-                let pins = pins(device);
-                let peripheral_clock = peripheral_clock(device);
-                let (midi_in, midi_out) = midi_in_out(device, &pins, &peripheral_clock);
-                Peripherals {
-                    monotonic_timer: monotonic_timer(device),
-                    midi_in,
-                    midi_out,
-                    display: display(device, &pins, &peripheral_clock),
-                    buttons: buttons(device, &pins),
-                    encoders: encoders(device, &pins),
-                }
-            }
-        }
-
-        fn pins(device: &mut PacPeripherals) -> Pins {
-            let sio = Sio::new(device.SIO);
-            Pins::new(
-                device.IO_BANK0,
-                device.PADS_BANK0,
-                sio.gpio_bank0,
-                &mut device.RESETS,
-            )
-        }
-
-        fn peripheral_clock(device: &mut PacPeripherals) -> PeripheralClock {
-            let mut watchdog = Watchdog::new(device.WATCHDOG);
+            // setup clocks
+            let mut watchdog = Watchdog::new(pac.WATCHDOG);
             let clocks = clocks::init_clocks_and_plls(
                 XOSC_CRYSTAL_FREQ,
-                device.XOSC,
-                device.CLOCKS,
-                device.PLL_SYS,
-                device.PLL_USB,
-                &mut device.RESETS,
+                pac.XOSC,
+                pac.CLOCKS,
+                pac.PLL_SYS,
+                pac.PLL_USB,
+                &mut pac.RESETS,
                 &mut watchdog,
             )
             .ok()
             .expect("init: init_clocks_and_plls(...) should succeed");
-            clocks.peripheral_clock
-        }
 
-        fn monotonic_timer(device: &mut PacPeripherals) -> Monotonic<Alarm0> {
-            let mut timer = Timer::new(device.TIMER, &mut device.RESETS);
+            // setup monotonic timer for rtic
+            let mut timer = Timer::new(pac.TIMER, &mut pac.RESETS);
             let monotonic_alarm = timer.alarm_0().unwrap();
-            Monotonic::new(timer, monotonic_alarm)
-        }
+            let monotonic_timer = Monotonic::new(timer, monotonic_alarm);
 
-        fn midi_in_out(device: &mut PacPeripherals, pins: &Pins, peripheral_clock: &PeripheralClock) -> (MidiIn, MidiOut) {
-            // put pins for midi into uart mode
+            // setup midi uart
             let midi_uart_pins = (
                 pins.gpio16.into_mode::<FunctionUart>(),
                 pins.gpio17.into_mode::<FunctionUart>(),
             );
 
-            // make a uart peripheral on the given pins
             let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
             let mut midi_uart =
-                UartPeripheral::new(device.UART0, midi_uart_pins, &mut device.RESETS)
-                    .enable(uart_config, peripheral_clock.freq())
+                UartPeripheral::new(pac.UART0, midi_uart_pins, &mut pac.RESETS)
+                    .enable(uart_config, clocks.peripheral_clock.freq())
                     .expect("enabling uart for midi should succeed");
 
-            // configure uart interrupt to fire on midi input
             midi_uart.enable_rx_interrupt();
 
-            // split the uart into rx and tx channels 
             let (midi_reader, midi_writer) = midi_uart.split();
-            //
-            // create MidiIn/Out interfaces
-            (EmbeddedMidiIn::new(midi_reader), EmbeddedMidiOut::new(midi_writer))
-        }
+            let (midi_in, midi_out) = (EmbeddedMidiIn::new(midi_reader), EmbeddedMidiOut::new(midi_writer));
 
-        fn display(device: &mut PacPeripherals, pins: &Pins, peripheral_clock: &PeripheralClock) -> Display {
-            // configure i2c pins
+            // setup display
             let sda_pin = pins.gpio26.into_mode::<FunctionI2C>();
             let scl_pin = pins.gpio27.into_mode::<FunctionI2C>();
 
-            // create i2c driver
             let i2c = I2C::i2c1(
-                device.I2C1,
+                pac.I2C1,
                 sda_pin,
                 scl_pin,
                 1.MHz(),
-                &mut device.RESETS,
-                peripheral_clock,
+                &mut pac.RESETS,
+                &clocks.peripheral_clock,
             );
 
-            // configure pins
-            let sda_pin: DisplaySdaPin = sda_pin.try_into().expect("should be able to convert SDA pin into a DisplaySdaPin");
-            let scl_pin: DisplaySclPin = scl_pin.try_into().expect("should be able to convert SCL pin into a DisplaySclPin");
-
-            // create i2c display interface
             let mut display = Ssd1306::new(
                 I2CDisplayInterface::new_alternate_address(i2c),
                 DisplaySize128x64,
@@ -434,31 +387,34 @@ mod microgroove {
             )
             .into_buffered_graphics_mode();
 
-            // intialise display
             display.init().expect("init: display initialisation failed");
 
-            display
-        }
-    
-        pub fn buttons(device: &mut PacPeripherals, pins: &Pins) -> ButtonArray {
+            // setup buttons
             let button_track_pin = pins.gpio0.into_pull_up_input();
             let button_rhythm_pin = pins.gpio1.into_pull_up_input();
             let button_melody_pin = pins.gpio2.into_pull_up_input();
             button_track_pin.set_interrupt_enabled(EdgeLow, true);
             button_rhythm_pin.set_interrupt_enabled(EdgeLow, true);
             button_melody_pin.set_interrupt_enabled(EdgeLow, true);
-            (button_track_pin, button_rhythm_pin, button_melody_pin)
-        }
+            let buttons = (button_track_pin, button_rhythm_pin, button_melody_pin);
         
-        pub fn encoders(device: &mut PacPeripherals, pins: &Pins) -> EncoderArray {
-            let mut encoders = Vec::new();
-            encoders.push(PositionalEncoder::new(pins.gpio9.into(), pins.gpio10.into()));
-            encoders.push(PositionalEncoder::new(pins.gpio11.into(), pins.gpio12.into()));
-            encoders.push(PositionalEncoder::new(pins.gpio13.into(), pins.gpio14.into()));
-            encoders.push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into()));
-            encoders.push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into()));
-            encoders.push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into()));
-            EncoderArray::new(encoders)
+            let mut encoder_vec = Vec::new();
+            encoder_vec.push(PositionalEncoder::new(pins.gpio9.into(), pins.gpio10.into()));
+            encoder_vec.push(PositionalEncoder::new(pins.gpio11.into(), pins.gpio12.into()));
+            encoder_vec.push(PositionalEncoder::new(pins.gpio13.into(), pins.gpio14.into()));
+            encoder_vec.push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into()));
+            encoder_vec.push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into()));
+            encoder_vec.push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into()));
+            let encoders = EncoderArray::new(encoder_vec);
+
+            (
+                monotonic_timer,
+                midi_in,
+                midi_out,
+                display,
+                buttons,
+                encoders,
+            )
         }
     }
 
@@ -482,7 +438,7 @@ mod microgroove {
             encoder::encoder_array::EncoderArray,
             input::{self, InputMode},
             midi,
-            peripherals::{ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin, Display, MidiIn, MidiOut, Peripherals},
+            peripherals::{ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin, Display, MidiIn, MidiOut, setup},
             sequencer::Track,
         };
 
@@ -507,7 +463,7 @@ mod microgroove {
             tracks: Vec<Option<Track>, TRACK_COUNT>,
 
             /// The currently selected track.  
-            current_track: & 'static Option<Track>,
+            current_track: usize,
         }
 
         /// RTIC local resources.
@@ -537,7 +493,7 @@ mod microgroove {
 
         /// RTIC init method sets up the hardware and initialises shared and local resources.
         #[init]
-        fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
+        fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
             info!("[init] hello world!");
 
             // configure RTIC monotonic as source of timestamps for defmt
@@ -548,12 +504,13 @@ mod microgroove {
             // initialise our tracks
             let mut tracks = Vec::new();
             for _ in 0..TRACK_COUNT {
-                tracks.push(Some(Track::new())).expect("inserting track into tracks vector should succeed");
+                tracks.push(Some(Track::new()))
+                    .expect("inserting track into tracks vector should succeed");
             }
 
             // create a device wrapper instance and grab some of the peripherals we need
-            let periph = Peripherals::new(&mut ctx.device);
-            let (button_track_pin, button_rhythm_pin, button_melody_pin) = periph.buttons;
+            let (monotonic_timer, midi_in, midi_out, display, buttons, encoders) = setup(ctx.device);
+            let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
 
             info!("[init] spawning tasks");
 
@@ -570,18 +527,18 @@ mod microgroove {
                     playing: false,
                     input_mode: InputMode::Track,
                     tracks,
-                    current_track: &mut tracks[0],
+                    current_track: 0,
                 },
                 Local {
-                    midi_in: periph.midi_in,
-                    midi_out: periph.midi_out,
-                    display: periph.display,
+                    midi_in,
+                    midi_out,
+                    display,
                     button_track_pin,
                     button_rhythm_pin,
                     button_melody_pin,
-                    encoders: periph.encoders,
+                    encoders,
                 },
-                init::Monotonics(periph.monotonic_timer),
+                init::Monotonics(monotonic_timer),
             )
         }
 
@@ -700,25 +657,27 @@ mod microgroove {
         /// Reading every 1ms removes some of the noise vs reading on each interrupt.
         #[task(
             priority = 4,
-            shared = [input_mode, current_track],
+            shared = [input_mode, tracks, current_track],
             local = [encoders],
         )]
         fn read_encoders(ctx: read_encoders::Context) {
             if let Some(_changes) = ctx.local.encoders.update() {
-                (ctx.shared.current_track, ctx.shared.input_mode).lock(|current_track, input_mode| {
-                    input::map_encoder_input(*current_track, *input_mode, ctx.local.encoders.take_values());
+                (ctx.shared.input_mode, ctx.shared.tracks, ctx.shared.current_track).lock(|input_mode, tracks, current_track| {
+                    input::map_encoder_input(*input_mode, &mut tracks[*current_track], ctx.local.encoders.take_values());
                 })
             }
         }
 
         #[task(
             priority = 1,
-            shared = [playing, input_mode, current_track],
+            shared = [playing, input_mode, tracks, current_track],
             local = [display]
         )]
-        fn render_display(mut ctx: render_display::Context) {
-            (ctx.shared.playing, ctx.shared.input_mode, ctx.shared.current_track).lock(|playing, input_mode, current_track| {
-                display::render(ctx.local.display, current_track, *input_mode, *playing);
+        fn render_display(ctx: render_display::Context) {
+            // TODO we're locking all the shared state here, which blocks other tasks using that
+            // state from running. Does this create a performance issue?
+            (ctx.shared.playing, ctx.shared.input_mode, ctx.shared.tracks, ctx.shared.current_track).lock(|playing, input_mode, tracks, current_track| {
+                display::render(ctx.local.display, &mut tracks[*current_track], *input_mode, *playing);
             });
         }
 
