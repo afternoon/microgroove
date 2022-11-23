@@ -8,6 +8,9 @@ mod microgroove {
     /// tracks, each with a Sequence of Steps. A Step consists of the basic information required to
     /// play a note.
     pub mod sequencer {
+        use embedded_midi::MidiMessage;
+        use defmt::trace;
+        use fugit::{ExtU64, MicrosDurationU64};
         use heapless::Vec;
         use midi_types::{Channel, Note, Value14, Value7};
 
@@ -58,7 +61,6 @@ mod microgroove {
             pub length: u8,
             pub midi_channel: Channel,
             pub steps: Sequence,
-            pub current_step: u8,
         }
 
         impl Track {
@@ -68,7 +70,6 @@ mod microgroove {
                     length: 16,
                     midi_channel: 0.into(),
                     steps: Track::generate_sequence(),
-                    current_step: 0,
                 }
             }
 
@@ -78,6 +79,132 @@ mod microgroove {
 
             fn default_sequence() -> Sequence {
                 (0..16).map(|_x| Some(Step::new())).collect()
+            }
+
+            pub fn should_play_on_tick(&self, tick: u32) -> bool {
+                tick % (self.time_division as u32) == 0
+            }
+
+            pub fn step_num(&self, tick: u32) -> u32 {
+                tick / (self.time_division as u32) % self.length as u32
+            }
+
+            pub fn step_at_tick(&self, tick: u32) -> Option<&Step> {
+                if !self.should_play_on_tick(tick) {
+                    return None
+                }
+
+                self.steps.get(self.step_num(tick) as usize).unwrap().as_ref()
+            }
+        }
+
+        /// Configure how many tracks are available.
+        pub const TRACK_COUNT: usize = 16;
+
+        // TODO will cause issues if polyphony
+        pub const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
+
+        pub enum ScheduledMidiMessage {
+            Immediate(MidiMessage),
+            Delayed(MidiMessage, MicrosDurationU64),
+        }
+
+        pub struct Sequencer {
+            pub tracks: Vec<Option<Track>, TRACK_COUNT>,
+            pub current_track: usize,
+            pub playing: bool,
+            pub tick: u32,
+        }
+
+        impl Sequencer {
+            pub fn new() -> Sequencer {
+                // create a set of empty tracks
+                let mut tracks = Vec::new();
+                tracks.push(Some(Track::new())).expect("inserting track into tracks vector should succeed");
+                for _ in 1..TRACK_COUNT {
+                    tracks.push(None)
+                        .expect("inserting track into tracks vector should succeed");
+                }
+
+                Sequencer {
+                    tracks,
+                    current_track: 0,
+                    playing: false,
+                    tick: 0,
+                }
+            }
+            
+            pub fn advance(&mut self) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
+                let mut output_messages = Vec::new();
+
+                let mut tick_duration: MicrosDurationU64 = 20_830.micros(); // time between ticks at 120bpm
+
+                for track in &self.tracks {
+                    if let Some(track) = track {
+                        if let Some(step) = track.step_at_tick(self.tick) {
+                            let note_on_message = MidiMessage::NoteOn(
+                                track.midi_channel,
+                                step.note,
+                                step.velocity,
+                            );
+                            
+                            output_messages.push(ScheduledMidiMessage::Immediate(note_on_message));
+
+                            let midi_channel: u8 = track.midi_channel.into();
+                            let note: u8 = step.note.into();
+                            let velocity: u8 = step.velocity.into();
+                            trace!(
+                                "Sequencer::advance: note_on channel={} note={} velocity={}",
+                                midi_channel,
+                                note,
+                                velocity
+                            );
+
+                            let note_off_message = MidiMessage::NoteOff(
+                                track.midi_channel,
+                                step.note,
+                                0.into()
+                            );
+                            let note_off_time = ((tick_duration.to_micros()
+                                * (track.time_division as u64)
+                                * step.length_step_cents as u64)
+                                / 100)
+                                .micros();
+
+                            output_messages.push(ScheduledMidiMessage::Delayed(note_off_message, note_off_time));
+                            
+                            trace!(
+                                "Sequencer::advance: scheduling note off message for {}us",
+                                note_off_time.to_micros()
+                            );
+                        }
+                    }
+                }
+
+                self.tick += 1;
+
+                output_messages
+            }
+
+            pub fn is_playing(&self) -> bool {
+                self.playing
+            }
+
+            pub fn start_playing(&mut self) {
+                self.tick = 0;
+                self.playing = true
+            }
+
+            pub fn stop_playing(&mut self) {
+                self.playing = false;
+            }
+
+            pub fn continue_playing(&mut self) {
+                self.playing = true
+            }
+
+            pub fn current_track(&self) -> Option<&Track> {
+                self.tracks.get(self.current_track).unwrap().as_ref()
             }
         }
     }
@@ -200,7 +327,7 @@ mod microgroove {
             display.flush().unwrap();
         }
 
-        pub fn render(display: &Display, track: &mut Option<Track>, input_mode: InputMode, playing: bool) {
+        pub fn render(display: &Display, track: Option<&Track>, input_mode: InputMode, playing: bool) {
             if track.is_none() {
                 show_disabled_track_warning();
                 return;
@@ -263,10 +390,7 @@ mod microgroove {
 
         /// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
         /// `MelodyMachine`, determined by `input_mode`.
-        pub fn map_encoder_input(input_mode: InputMode, track: &mut Option<Track>, encoder_values: Vec<i32, ENCODER_COUNT>) {
-            if track.is_none() {
-                track.replace(Track::new());
-            }
+        pub fn map_encoder_input(_input_mode: InputMode, _track: Option<&Track>, _encoder_values: Vec<i32, ENCODER_COUNT>) {
         }
     }
 
@@ -276,25 +400,23 @@ mod microgroove {
         use rp2040_hal::clocks::PeripheralClock;
         use rp_pico::{
             hal::{
-                clocks,
+                clocks::{self, Clock},
                 gpio::{
                     pin::bank0::{Gpio0, Gpio1, Gpio16, Gpio17, Gpio2, Gpio26, Gpio27},
-                    FunctionI2C, FunctionUart,
-                    Interrupt::EdgeLow,
-                    Pin, PullUpInput,
+                    FunctionI2C, FunctionUart, Interrupt::EdgeLow, Pin, PullUpInput,
                 },
-                pac::{self, I2C1, UART0},
+                pac::{self, I2C1, RESETS, TIMER, UART0},
                 sio::Sio,
                 timer::{monotonic::Monotonic, Alarm0},
                 uart::{DataBits, Reader, StopBits, UartConfig, UartPeripheral, Writer},
-                Clock, Timer, Watchdog, I2C,
+                Timer, Watchdog, I2C,
             },
             Pins, XOSC_CRYSTAL_FREQ,
         };
-        use embedded_midi::{MidiIn as EmbeddedMidiIn, MidiOut as EmbeddedMidiOut};
+        use embedded_midi;
         use ssd1306::{mode::BufferedGraphicsMode, prelude::*, I2CDisplayInterface, Ssd1306};
-        use fugit::RateExtU32;
-        use super::encoder::{
+        use fugit::{RateExtU32, HertzU32};
+        use super:: encoder::{
             encoder_array::EncoderArray,
             positional_encoder::PositionalEncoder,
         };
@@ -305,8 +427,8 @@ mod microgroove {
         type MidiUartPins = (MidiOutUartPin, MidiInUartPin);
 
         // microgroove-specific midi in/out channel types
-        pub type MidiIn = EmbeddedMidiIn<Reader<UART0, MidiUartPins>>;
-        pub type MidiOut = EmbeddedMidiOut<Writer<UART0, MidiUartPins>>;
+        pub type MidiIn = embedded_midi::MidiIn<Reader<UART0, MidiUartPins>>;
+        pub type MidiOut = embedded_midi::MidiOut<Writer<UART0, MidiUartPins>>;
 
         // type alias for display pins
         type DisplaySdaPin = Pin<Gpio26, FunctionI2C>;
@@ -326,7 +448,7 @@ mod microgroove {
         pub type ButtonMelodyPin = Pin<Gpio2, PullUpInput>;
         type ButtonArray = (ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin);
 
-        pub fn setup(mut pac: pac::Peripherals) -> (Monotonic<Alarm0>, MidiIn, MidiOut, Display, ButtonArray, EncoderArray) {
+        pub fn setup(mut pac: pac::Peripherals) -> (MidiIn, MidiOut, Display, ButtonArray, EncoderArray, Monotonic<Alarm0>) {
             // setup gpio pins
             let sio = Sio::new(pac.SIO);
             let pins = Pins::new(pac.IO_BANK0, pac.PADS_BANK0, sio.gpio_bank0, &mut pac.RESETS);
@@ -345,49 +467,21 @@ mod microgroove {
             .ok()
             .expect("init: init_clocks_and_plls(...) should succeed");
 
-            // setup monotonic timer for rtic
-            let mut timer = Timer::new(pac.TIMER, &mut pac.RESETS);
-            let monotonic_alarm = timer.alarm_0().unwrap();
-            let monotonic_timer = Monotonic::new(timer, monotonic_alarm);
-
-            // setup midi uart
-            let midi_uart_pins = (
+            let (midi_in, midi_out) = new_midi_uart(
+                pac.UART0,
                 pins.gpio16.into_mode::<FunctionUart>(),
                 pins.gpio17.into_mode::<FunctionUart>(),
+                &mut pac.RESETS,
+                clocks.peripheral_clock.freq()
             );
 
-            let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
-            let mut midi_uart =
-                UartPeripheral::new(pac.UART0, midi_uart_pins, &mut pac.RESETS)
-                    .enable(uart_config, clocks.peripheral_clock.freq())
-                    .expect("enabling uart for midi should succeed");
-
-            midi_uart.enable_rx_interrupt();
-
-            let (midi_reader, midi_writer) = midi_uart.split();
-            let (midi_in, midi_out) = (EmbeddedMidiIn::new(midi_reader), EmbeddedMidiOut::new(midi_writer));
-
-            // setup display
-            let sda_pin = pins.gpio26.into_mode::<FunctionI2C>();
-            let scl_pin = pins.gpio27.into_mode::<FunctionI2C>();
-
-            let i2c = I2C::i2c1(
+            let display = new_display(
                 pac.I2C1,
-                sda_pin,
-                scl_pin,
-                1.MHz(),
+                pins.gpio26.into_mode::<FunctionI2C>(),
+                pins.gpio27.into_mode::<FunctionI2C>(),
                 &mut pac.RESETS,
                 &clocks.peripheral_clock,
             );
-
-            let mut display = Ssd1306::new(
-                I2CDisplayInterface::new_alternate_address(i2c),
-                DisplaySize128x64,
-                DisplayRotation::Rotate0,
-            )
-            .into_buffered_graphics_mode();
-
-            display.init().expect("init: display initialisation failed");
 
             // setup buttons
             let button_track_pin = pins.gpio0.into_pull_up_input();
@@ -408,13 +502,54 @@ mod microgroove {
             let encoders = EncoderArray::new(encoder_vec);
 
             (
-                monotonic_timer,
                 midi_in,
                 midi_out,
                 display,
                 buttons,
                 encoders,
+                new_monotonic_timer(pac.TIMER, &mut pac.RESETS),
             )
+        }
+
+        fn new_monotonic_timer(timer: TIMER, resets: &mut RESETS) -> Monotonic<Alarm0> {
+            // setup monotonic timer for rtic
+            let mut timer = Timer::new(timer, resets);
+            let monotonic_alarm = timer.alarm_0().unwrap();
+            Monotonic::new(timer, monotonic_alarm)
+        }
+        
+        fn new_midi_uart(uart: UART0, out_pin: MidiOutUartPin, in_pin: MidiInUartPin, resets: &mut RESETS, peripheral_clock_freq: HertzU32) -> (MidiIn, MidiOut) {
+            let midi_uart_pins = (out_pin, in_pin);
+            let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
+            let mut midi_uart =
+                UartPeripheral::new(uart, midi_uart_pins, resets)
+                    .enable(uart_config, peripheral_clock_freq)
+                    .expect("enabling uart for midi should succeed");
+            midi_uart.enable_rx_interrupt();
+            let (midi_reader, midi_writer) = midi_uart.split();
+            (embedded_midi::MidiIn::new(midi_reader), embedded_midi::MidiOut::new(midi_writer))
+        }
+
+        fn new_display(i2c: I2C1, sda_pin: DisplaySdaPin, scl_pin: DisplaySclPin, resets: &mut RESETS, peripheral_clock: &PeripheralClock) -> Display {
+            let i2c_bus = I2C::i2c1(
+                i2c,
+                sda_pin,
+                scl_pin,
+                1.MHz(),
+                resets,
+                peripheral_clock,
+            );
+
+            let mut display = Ssd1306::new(
+                I2CDisplayInterface::new_alternate_address(i2c_bus),
+                DisplaySize128x64,
+                DisplayRotation::Rotate0,
+            )
+            .into_buffered_graphics_mode();
+
+            display.init().expect("init: display initialisation failed");
+
+            display
         }
     }
 
@@ -428,7 +563,6 @@ mod microgroove {
     mod app {
         use defmt::{self, error, info, trace};
         use defmt_rtt as _;
-        use heapless::Vec;
         use midi_types::MidiMessage;
         use nb::block;
         use rp_pico::hal::{gpio::Interrupt::EdgeLow, timer::{monotonic::Monotonic, Alarm0}};
@@ -439,31 +573,21 @@ mod microgroove {
             input::{self, InputMode},
             midi,
             peripherals::{ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin, Display, MidiIn, MidiOut, setup},
-            sequencer::Track,
+            sequencer::{ScheduledMidiMessage, Sequencer},
         };
-
-        /// Configure how many tracks are available.
-        const TRACK_COUNT: usize = 16;
 
         /// Define RTIC monotonic timer. Also used for defmt.
         #[monotonic(binds = TIMER_IRQ_0, default = true)]
         type TimerMonotonic = Monotonic<Alarm0>;
-        type TimerMonotonicInstant = <TimerMonotonic as rtic::rtic_monotonic::Monotonic>::Instant;
         
         /// RTIC shared resources.
         #[shared]
         struct Shared {
-            /// Are we playing, or not?
-            playing: bool,
+            /// Sequencer big-ball-of-state
+            sequencer: Sequencer,
 
             /// Current page of the UI.
             input_mode: InputMode,
-
-            /// Set of tracks for the sequencer to play.
-            tracks: Vec<Option<Track>, TRACK_COUNT>,
-
-            /// The currently selected track.  
-            current_track: usize,
         }
 
         /// RTIC local resources.
@@ -501,15 +625,8 @@ mod microgroove {
                 monotonics::now().duration_since_epoch().to_micros()
             });
 
-            // initialise our tracks
-            let mut tracks = Vec::new();
-            for _ in 0..TRACK_COUNT {
-                tracks.push(Some(Track::new()))
-                    .expect("inserting track into tracks vector should succeed");
-            }
-
             // create a device wrapper instance and grab some of the peripherals we need
-            let (monotonic_timer, midi_in, midi_out, display, buttons, encoders) = setup(ctx.device);
+            let (midi_in, midi_out, display, buttons, encoders, monotonic_timer) = setup(ctx.device);
             let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
 
             info!("[init] spawning tasks");
@@ -524,10 +641,8 @@ mod microgroove {
 
             (
                 Shared {
-                    playing: false,
                     input_mode: InputMode::Track,
-                    tracks,
-                    current_track: 0,
+                    sequencer: Sequencer::new(),
                 },
                 Local {
                     midi_in,
@@ -546,45 +661,48 @@ mod microgroove {
         #[task(
             binds = UART0_IRQ,
             priority = 4,
-            shared = [playing],
+            shared = [sequencer],
             local = [midi_in]
         )]
         fn uart0_irq(mut ctx: uart0_irq::Context) {
             // read those sweet sweet midi bytes!
             // TODO do we need the block! here?
             if let Ok(message) = block!(ctx.local.midi_in.read()) { 
-                match message {
-                    MidiMessage::TimingClock => {
-                        trace!("[midi] clock");
-
-                        // spawn task to advance tracks and potentially generate midi output
-                        ctx.shared.playing.lock(|playing| {
-                            if *playing {
-                                sequencer_advance::spawn()
-                                    .expect("sequencer_advance::spawn() should succeed");
+                ctx.shared.sequencer.lock(|sequencer| {
+                    match message {
+                        MidiMessage::TimingClock => {
+                            trace!("[midi] clock");
+                            let messages = sequencer.advance();
+                            for message in messages {
+                                match message {
+                                    ScheduledMidiMessage::Immediate(message) => {
+                                        if let Err(_err) = midi_send::spawn(message) {
+                                            error!("could not spawn midi_send for immediate message")
+                                        }
+                                    }
+                                    ScheduledMidiMessage::Delayed(message, delay) => {
+                                        if let Err(_err) = midi_send::spawn_after(delay, message) {
+                                            error!("could not spawn midi_send for delayed message")
+                                        }
+                                    }
+                                }
                             }
-                        });
+                        }
+                        MidiMessage::Start => {
+                            info!("[midi] start");
+                            sequencer.start_playing();
+                        }
+                        MidiMessage::Stop => {
+                            info!("[midi] stop");
+                            sequencer.stop_playing();
+                        }
+                        MidiMessage::Continue => {
+                            info!("[midi] continue");
+                            sequencer.continue_playing();
+                        }
+                        _ => trace!("[midi] UNKNOWN"),
                     }
-                    MidiMessage::Start => {
-                        info!("[midi] start");
-                        ctx.shared.playing.lock(|playing| {
-                            *playing = true;
-                        });
-                    }
-                    MidiMessage::Stop => {
-                        info!("[midi] stop");
-                        ctx.shared.playing.lock(|playing| {
-                            *playing = false;
-                        });
-                    }
-                    MidiMessage::Continue => {
-                        info!("[midi] continue");
-                        ctx.shared.playing.lock(|playing| {
-                            *playing = true;
-                        });
-                    }
-                    _ => trace!("[midi] UNKNOWN"),
-                }
+                });
 
                 // pass received message to midi out ("soft thru")
                 match midi_send::spawn(message) {
@@ -608,15 +726,6 @@ mod microgroove {
                 .midi_out
                 .write(&message)
                 .expect("midi_out.write(message) should succeed");
-        }
-
-        #[task(
-            priority = 2,
-            shared = [tracks],
-            local = []
-        )]
-        fn sequencer_advance(ctx: sequencer_advance::Context) {
-            panic!("TODO");
         }
 
         /// Handle interrupts caused by button presses and update the `input_mode` shared resource.
@@ -657,27 +766,27 @@ mod microgroove {
         /// Reading every 1ms removes some of the noise vs reading on each interrupt.
         #[task(
             priority = 4,
-            shared = [input_mode, tracks, current_track],
+            shared = [input_mode, sequencer],
             local = [encoders],
         )]
         fn read_encoders(ctx: read_encoders::Context) {
             if let Some(_changes) = ctx.local.encoders.update() {
-                (ctx.shared.input_mode, ctx.shared.tracks, ctx.shared.current_track).lock(|input_mode, tracks, current_track| {
-                    input::map_encoder_input(*input_mode, &mut tracks[*current_track], ctx.local.encoders.take_values());
+                (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
+                    input::map_encoder_input(*input_mode, sequencer.current_track(), ctx.local.encoders.take_values());
                 })
             }
         }
 
+        // TODO we're locking all the shared state here, which blocks other tasks using that
+        // state from running. Does this create a performance issue?
         #[task(
             priority = 1,
-            shared = [playing, input_mode, tracks, current_track],
+            shared = [input_mode, sequencer],
             local = [display]
         )]
         fn render_display(ctx: render_display::Context) {
-            // TODO we're locking all the shared state here, which blocks other tasks using that
-            // state from running. Does this create a performance issue?
-            (ctx.shared.playing, ctx.shared.input_mode, ctx.shared.tracks, ctx.shared.current_track).lock(|playing, input_mode, tracks, current_track| {
-                display::render(ctx.local.display, &mut tracks[*current_track], *input_mode, *playing);
+            (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
+                display::render(ctx.local.display, sequencer.current_track(), *input_mode, sequencer.is_playing());
             });
         }
 
