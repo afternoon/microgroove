@@ -104,6 +104,7 @@ mod microgroove {
         // TODO will cause issues if polyphony
         pub const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
 
+        #[derive(Debug)]
         pub enum ScheduledMidiMessage {
             Immediate(MidiMessage),
             Delayed(MidiMessage, MicrosDurationU64),
@@ -137,7 +138,7 @@ mod microgroove {
             pub fn advance(&mut self) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
                 let mut output_messages = Vec::new();
 
-                let mut tick_duration: MicrosDurationU64 = 20_830.micros(); // time between ticks at 120bpm
+                let tick_duration: MicrosDurationU64 = 20_830.micros(); // time between ticks at 120bpm
 
                 for track in &self.tracks {
                     if let Some(track) = track {
@@ -148,7 +149,7 @@ mod microgroove {
                                 step.velocity,
                             );
                             
-                            output_messages.push(ScheduledMidiMessage::Immediate(note_on_message));
+                            output_messages.push(ScheduledMidiMessage::Immediate(note_on_message)).unwrap();
 
                             let midi_channel: u8 = track.midi_channel.into();
                             let note: u8 = step.note.into();
@@ -171,7 +172,7 @@ mod microgroove {
                                 / 100)
                                 .micros();
 
-                            output_messages.push(ScheduledMidiMessage::Delayed(note_off_message, note_off_time));
+                            output_messages.push(ScheduledMidiMessage::Delayed(note_off_message, note_off_time)).unwrap();
                             
                             trace!(
                                 "Sequencer::advance: scheduling note off message for {}us",
@@ -262,6 +263,12 @@ mod microgroove {
                     val
                 }
             }
+
+            impl core::fmt::Debug for PositionalEncoder {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    write!(f, "encoder")
+                }
+            }
         }
 
         pub mod encoder_array {
@@ -294,11 +301,11 @@ mod microgroove {
 
     /// Rendering UI graphics to the display.
     pub mod display {
-        // graphics APIs
+        use display_interface::DisplayError;
         use embedded_graphics::{
             mono_font::{
-                ascii::FONT_8X13_ITALIC,
-                MonoTextStyleBuilder,
+                ascii::{FONT_8X13_ITALIC, FONT_4X6},
+                MonoTextStyle,
             },
             pixelcolor::BinaryColor,
             prelude::*,
@@ -311,32 +318,58 @@ mod microgroove {
             peripherals::Display
         };
 
+        type DisplayResult = Result<(), DisplayError>;
+
         /// Show snazzy splash screen.
-        fn render_splash_screen(display: &mut Display) {
+        pub fn render_splash_screen(display: &mut Display) -> DisplayResult {
             display.clear();
 
-            let text_style = MonoTextStyleBuilder::new()
-                .font(&FONT_8X13_ITALIC)
-                .text_color(BinaryColor::On)
-                .build();
+            Text::with_baseline(
+                "MICROGROOVE",
+                Point::new(20, 20),
+                MonoTextStyle::new(&FONT_8X13_ITALIC, BinaryColor::On),
+                Baseline::Top
+            )
+                .draw(display)?;
 
-            Text::with_baseline("MICROGROOVE", Point::new(20, 20), text_style, Baseline::Top)
-                .draw(display)
-                .unwrap();
+            Text::with_baseline(
+                "I wanna go bang",
+                Point::new(37, 42),
+                MonoTextStyle::new(&FONT_4X6, BinaryColor::On),
+                Baseline::Top
+            )
+                .draw(display)?;
 
-            display.flush().unwrap();
+            display.flush();
+            Ok(())
         }
 
-        pub fn render(display: &Display, track: Option<&Track>, input_mode: InputMode, playing: bool) {
+        pub fn render_editor(display: &mut Display, track: Option<&Track>, input_mode: InputMode, _playing: bool) -> DisplayResult {
+            draw_header(input_mode)?;
             if track.is_none() {
-                show_disabled_track_warning();
-                return;
+                draw_disabled_track_warning()?;
             }
+            else {
+                draw_sequence()?;
+                draw_params()?;
+            }
+            display.flush();
+            Ok(())
+        }
 
+        fn draw_header(input_mode: InputMode) -> DisplayResult {
             panic!("TODO");
         }
 
-        fn show_disabled_track_warning() {
+        fn draw_disabled_track_warning() -> DisplayResult {
+            panic!("TODO");
+        }
+
+        fn draw_sequence() -> DisplayResult {
+            panic!("TODO");
+        }
+
+        fn draw_params() -> DisplayResult {
             panic!("TODO");
         }
     }
@@ -493,12 +526,12 @@ mod microgroove {
             let buttons = (button_track_pin, button_rhythm_pin, button_melody_pin);
         
             let mut encoder_vec = Vec::new();
-            encoder_vec.push(PositionalEncoder::new(pins.gpio9.into(), pins.gpio10.into()));
-            encoder_vec.push(PositionalEncoder::new(pins.gpio11.into(), pins.gpio12.into()));
-            encoder_vec.push(PositionalEncoder::new(pins.gpio13.into(), pins.gpio14.into()));
-            encoder_vec.push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into()));
-            encoder_vec.push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into()));
-            encoder_vec.push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into()));
+            encoder_vec.push(PositionalEncoder::new(pins.gpio9.into(), pins.gpio10.into())).expect("failed to create encoder");
+            encoder_vec.push(PositionalEncoder::new(pins.gpio11.into(), pins.gpio12.into())).unwrap();
+            encoder_vec.push(PositionalEncoder::new(pins.gpio13.into(), pins.gpio14.into())).unwrap();
+            encoder_vec.push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into())).unwrap();
+            encoder_vec.push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into())).unwrap();
+            encoder_vec.push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into())).unwrap();
             let encoders = EncoderArray::new(encoder_vec);
 
             (
@@ -626,8 +659,11 @@ mod microgroove {
             });
 
             // create a device wrapper instance and grab some of the peripherals we need
-            let (midi_in, midi_out, display, buttons, encoders, monotonic_timer) = setup(ctx.device);
+            let (midi_in, midi_out, mut display, buttons, encoders, monotonic_timer) = setup(ctx.device);
             let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
+
+            // show a splash screen for a bit
+            display::render_splash_screen(&mut display).unwrap();
 
             info!("[init] spawning tasks");
 
@@ -635,7 +671,7 @@ mod microgroove {
             read_encoders::spawn().expect("read_encoders::spawn should succeed");
 
             // start scheduled task to update display
-            render_display::spawn().expect("render_display::spawn should succeed");
+            render_editor::spawn().expect("render_editor::spawn should succeed");
 
             info!("[init] complete 🤘");
 
@@ -784,9 +820,9 @@ mod microgroove {
             shared = [input_mode, sequencer],
             local = [display]
         )]
-        fn render_display(ctx: render_display::Context) {
+        fn render_editor(ctx: render_editor::Context) {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                display::render(ctx.local.display, sequencer.current_track(), *input_mode, sequencer.is_playing());
+                display::render_editor(ctx.local.display, sequencer.current_track(), *input_mode, sequencer.is_playing()).unwrap();
             });
         }
 
