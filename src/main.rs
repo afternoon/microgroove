@@ -139,6 +139,7 @@ mod microgroove {
                 let mut output_messages = Vec::new();
 
                 let tick_duration: MicrosDurationU64 = 20_830.micros(); // time between ticks at 120bpm
+                panic!("TODO calculate tick duration");
 
                 for track in &self.tracks {
                     if let Some(track) = track {
