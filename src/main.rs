@@ -8,6 +8,8 @@ mod microgroove {
     /// tracks, each with a Sequence of Steps. A Step consists of the basic information required to
     /// play a note.
     pub mod sequencer {
+        use core::cmp::Ordering;
+
         use embedded_midi::MidiMessage;
         use defmt::trace;
         use fugit::{ExtU64, MicrosDurationU64};
@@ -39,6 +41,38 @@ mod microgroove {
                     pitch_bend: 0u16.into(),
                     length_step_cents: 80,
                     delay: 0,
+                }
+            }
+        }
+
+        impl PartialEq for Step {
+            fn eq(&self, other: &Self) -> bool {
+                let self_note_num: u8 = self.note.into();
+                let other_note_num: u8 = other.note.into();
+                self_note_num == other_note_num
+            }
+        }
+
+        impl Eq for Step {}
+
+        impl PartialOrd for Step {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        impl Ord for Step {
+            fn cmp(&self, other: &Self) -> Ordering {
+                let self_note_num: u8 = self.note.into();
+                let other_note_num: u8 = other.note.into();
+                if self_note_num == other_note_num {
+                    Ordering::Equal
+                }
+                else if self_note_num < other_note_num {
+                    Ordering::Less
+                }
+                else {
+                    Ordering::Greater
                 }
             }
         }
@@ -335,7 +369,7 @@ mod microgroove {
             },
             pixelcolor::BinaryColor,
             prelude::*,
-            primitives::{Rectangle, PrimitiveStyle, PrimitiveStyleBuilder},
+            primitives::{Rectangle, PrimitiveStyle, PrimitiveStyleBuilder, Line},
             text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
         };
 
@@ -358,6 +392,16 @@ mod microgroove {
         const HEADER_HEIGHT: u32 = 5;
         const HEADER_PLAYING_ICON_X_POS: i32 = 24;
 
+        const SEQUENCE_X_POS: i32 = 0;
+        const SEQUENCE_Y_POS: i32 = HEADER_HEIGHT as i32 + 1;
+        const SEQUENCE_WIDTH: u32 = DISPLAY_WIDTH as u32;
+        const SEQUENCE_HEIGHT: u32 = 45;
+        const SEQUENCE_UNDERLINE_Y_POS: i32 = 44;
+
+        fn map_to_range(x: u32, in_min: u32, in_max: u32, out_min: u32, out_max: u32) -> u32 {
+            (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min
+        }
+
         /// Show snazzy splash screen.
         pub fn render_splash_screen_view(display: &mut Display) -> DisplayResult {
             display.clear();
@@ -379,21 +423,21 @@ mod microgroove {
             Ok(())
         }
 
-        pub fn render_perform_view(display: &mut Display, playing: bool, track: Option<&Track>, input_mode: InputMode, _playing: bool) -> DisplayResult {
+        pub fn render_perform_view(display: &mut Display, track: Option<&Track>, input_mode: InputMode, playing: bool) -> DisplayResult {
             draw_header(display, playing, input_mode)?;
-            if track.is_none() {
-                draw_disabled_track_warning(display)?;
+            if let Some(track) = track {
+                draw_sequence(display, track)?;
+                draw_params(display)?;
             }
             else {
-                draw_sequence(display)?;
-                draw_params(display)?;
+                draw_disabled_track_warning(display)?;
             }
             display.flush()?;
             Ok(())
         }
 
         fn draw_header(display: &mut Display, playing: bool, input_mode: InputMode) -> DisplayResult {
-            Rectangle::new(Point::zero(), Size::new(HEADER_HEIGHT, HEADER_WIDTH))
+            Rectangle::new(Point::zero(), Size::new(HEADER_WIDTH, HEADER_HEIGHT))
                 .into_styled(background_style())
                 .draw(display)?;
             Text::with_text_style("TRK", Point::zero(), default_character_style(), centered())
@@ -410,7 +454,7 @@ mod microgroove {
             Text::with_text_style(title, Point::new(DISPLAY_CENTER, 0), default_character_style(), centered())
                 .draw(display)?;
             match input_mode {
-                InputMode::Track => {}
+                InputMode::Track => { /* don't do nuffink */ }
                 InputMode::Rhythm | InputMode::Melody => {
                     let machine_name = "MACHINE_NAME";
                     Text::with_text_style(machine_name, Point::new(DISPLAY_WIDTH, 0), default_character_style(), right_align())
@@ -424,8 +468,49 @@ mod microgroove {
             warning(display, "TRACK DISABLED")
         }
 
-        fn draw_sequence(_display: &mut Display) -> DisplayResult {
-            panic!("TODO");
+        fn draw_sequence(display: &mut Display, track: &Track) -> DisplayResult {
+            let step_width: u32 = if track.length < 17 { 6 } else { 3 };
+            let step_height: u32 = step_width;
+            let display_sequence_margin_left = (DISPLAY_WIDTH - (track.length as i32 * (step_width as i32 + 1))) / 2;
+            let note_min: u8 = track.steps.iter().min().unwrap().as_ref().unwrap().note.into();
+            let note_max: u8 = track.steps.iter().max().unwrap().as_ref().unwrap().note.into();
+            let note_y_pos_min: u32 = 35;
+            let note_y_pos_max: u32 = 9 + step_height as u32;
+            let step_size = Size::new(step_width, step_height);
+            let mut step_num = 0;
+
+            // erase sequence region of display
+            Rectangle::new(Point::new(SEQUENCE_X_POS, SEQUENCE_Y_POS), Size::new(SEQUENCE_WIDTH, SEQUENCE_HEIGHT))
+                .into_styled(background_style())
+                .draw(display)?;
+
+            for step in &track.steps {
+                if let Some(step) = step {
+                    let x = display_sequence_margin_left + (step_num * (step_width as i32 + 1));
+                    let x2 = x + step_width as i32;
+                    let note_num: u8 = step.note.into();
+                    let y = map_to_range(
+                        note_num as u32,
+                        note_min as u32,
+                        note_max as u32,
+                        note_y_pos_min,
+                        note_y_pos_max
+                    );
+                    Rectangle::new(Point::new(x as i32, y as i32), step_size)
+                        .into_styled(outline_style())
+                        .draw(display)?;
+
+                    // draw step underline
+                    Line::new(Point::new(x, SEQUENCE_UNDERLINE_Y_POS), Point::new(x2, SEQUENCE_UNDERLINE_Y_POS))
+                        .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
+                        .draw(display)?;
+
+                    // TODO fill active step
+                }
+                step_num += 1;
+            }
+
+            Ok(())
         }
 
         fn draw_params(_display: &mut Display) -> DisplayResult {
@@ -444,7 +529,15 @@ mod microgroove {
             PrimitiveStyle::with_fill(BinaryColor::Off)
         }
 
-        fn warning_box_style() -> PrimitiveStyle<BinaryColor> {
+        fn outline_style() -> PrimitiveStyle<BinaryColor> {
+            PrimitiveStyleBuilder::new()
+                .stroke_color(BinaryColor::On)
+                .stroke_width(1)
+                .fill_color(BinaryColor::Off)
+                .build()
+        }
+
+        fn fat_outline_style() -> PrimitiveStyle<BinaryColor> {
             PrimitiveStyleBuilder::new()
                 .stroke_color(BinaryColor::On)
                 .stroke_width(WARNING_BORDER)
@@ -482,7 +575,7 @@ mod microgroove {
                 Size::new(warning_width as u32, warning_height as u32),
 
             )
-                .into_styled(warning_box_style())
+                .into_styled(fat_outline_style())
                 .draw(display)?;
             Text::with_text_style(
                 text,
@@ -545,6 +638,7 @@ mod microgroove {
         /// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
         /// `MelodyMachine`, determined by `input_mode`.
         pub fn map_encoder_input(_input_mode: InputMode, _track: Option<&Track>, _encoder_values: Vec<i32, ENCODER_COUNT>) {
+            panic!("TODO");
         }
     }
 
@@ -944,7 +1038,12 @@ mod microgroove {
         )]
         fn render_perform_view(ctx: render_perform_view::Context) {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                display::render_perform_view(ctx.local.display, sequencer.is_playing(), sequencer.current_track(), *input_mode, sequencer.is_playing()).unwrap();
+                display::render_perform_view(
+                    ctx.local.display,
+                    sequencer.current_track(),
+                    *input_mode,
+                    sequencer.is_playing()
+                ).unwrap();
             });
         }
 
