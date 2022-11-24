@@ -335,7 +335,8 @@ mod microgroove {
             },
             pixelcolor::BinaryColor,
             prelude::*,
-            text::{Baseline, Text},
+            primitives::{Rectangle, PrimitiveStyle},
+            text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
         };
 
         use super::{
@@ -346,57 +347,111 @@ mod microgroove {
 
         type DisplayResult = Result<(), DisplayError>;
 
-        /// Show snazzy splash screen.
-        pub fn render_splash_screen(display: &mut Display) -> DisplayResult {
-            display.clear();
+        const DISPLAY_WIDTH: i32 = 128;
+        const DISPLAY_CENTER: i32 = DISPLAY_WIDTH / 2;
 
-            Text::with_baseline(
+        const HEADER_WIDTH: u32 = DISPLAY_WIDTH as u32;
+        const HEADER_HEIGHT: u32 = 5;
+        const HEADER_PLAYING_ICON_X_POS: i32 = 24;
+
+        /// Show snazzy splash screen.
+        pub fn render_splash_screen_view(display: &mut Display) -> DisplayResult {
+            display.clear();
+            Text::with_text_style(
                 "MICROGROOVE",
-                Point::new(20, 20),
-                MonoTextStyle::new(&FONT_8X13_ITALIC, BinaryColor::On),
-                Baseline::Top
+                Point::new(DISPLAY_CENTER, 20),
+                big_character_style(),
+                centered()
             )
                 .draw(display)?;
-
             Text::with_baseline(
                 "I wanna go bang",
                 Point::new(37, 42),
-                MonoTextStyle::new(&FONT_4X6, BinaryColor::On),
+                default_character_style(),
                 Baseline::Top
             )
                 .draw(display)?;
-
             display.flush()?;
             Ok(())
         }
 
-        pub fn render_editor(display: &mut Display, track: Option<&Track>, input_mode: InputMode, _playing: bool) -> DisplayResult {
-            draw_header(input_mode)?;
+        pub fn render_perform_view(display: &mut Display, playing: bool, track: Option<&Track>, input_mode: InputMode, _playing: bool) -> DisplayResult {
+            draw_header(display, playing, input_mode)?;
             if track.is_none() {
-                draw_disabled_track_warning()?;
+                draw_disabled_track_warning(display)?;
             }
             else {
-                draw_sequence()?;
-                draw_params()?;
+                draw_sequence(display)?;
+                draw_params(display)?;
             }
             display.flush()?;
             Ok(())
         }
 
-        fn draw_header(_input_mode: InputMode) -> DisplayResult {
+        fn draw_header(display: &mut Display, playing: bool, input_mode: InputMode) -> DisplayResult {
+            Rectangle::new(Point::zero(), Size::new(HEADER_HEIGHT, HEADER_WIDTH))
+                .into_styled(background_style())
+                .draw(display)?;
+            Text::with_text_style("TRK", Point::zero(), default_character_style(), centered())
+                .draw(display)?;
+            if playing {
+                Text::with_baseline(">", Point::new(HEADER_PLAYING_ICON_X_POS, 0), default_character_style(), Baseline::Top)
+                    .draw(display)?;
+            }
+            let title = match input_mode {
+                InputMode::Track => "TRACK",
+                InputMode::Rhythm => "RHYTHM",
+                InputMode::Melody => "MELODY",
+            };
+            Text::with_text_style(title, Point::new(DISPLAY_CENTER, 0), default_character_style(), centered())
+                .draw(display)?;
+            match input_mode {
+                InputMode::Track => {}
+                InputMode::Rhythm | InputMode::Melody => {
+                    let machine_name = "MACHINE_NAME";
+                    Text::with_text_style(machine_name, Point::new(DISPLAY_WIDTH, 0), default_character_style(), right_align())
+                        .draw(display)?;
+                }
+            }
+            Ok(())
+        }
+
+        fn draw_disabled_track_warning(_display: &mut Display) -> DisplayResult {
             panic!("TODO");
         }
 
-        fn draw_disabled_track_warning() -> DisplayResult {
+        fn draw_sequence(_display: &mut Display) -> DisplayResult {
             panic!("TODO");
         }
 
-        fn draw_sequence() -> DisplayResult {
+        fn draw_params(_display: &mut Display) -> DisplayResult {
             panic!("TODO");
         }
 
-        fn draw_params() -> DisplayResult {
-            panic!("TODO");
+        fn default_character_style<'a>() -> MonoTextStyle<'a, BinaryColor> {
+            MonoTextStyle::new(&FONT_4X6, BinaryColor::On)
+        }
+
+        fn big_character_style<'a>() -> MonoTextStyle<'a, BinaryColor> {
+            MonoTextStyle::new(&FONT_8X13_ITALIC, BinaryColor::On)
+        }
+
+        fn background_style() -> PrimitiveStyle<BinaryColor> {
+            PrimitiveStyle::with_fill(BinaryColor::Off)
+        }
+
+        fn centered() -> TextStyle {
+            TextStyleBuilder::new()
+                .alignment(Alignment::Center)
+                .baseline(Baseline::Top)
+                .build()
+        }
+
+        fn right_align() -> TextStyle {
+            TextStyleBuilder::new()
+                .alignment(Alignment::Right)
+                .baseline(Baseline::Top)
+                .build()
         }
     }
     
@@ -689,7 +744,7 @@ mod microgroove {
             let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
 
             // show a splash screen for a bit
-            display::render_splash_screen(&mut display).unwrap();
+            display::render_splash_screen_view(&mut display).unwrap();
 
             info!("[init] spawning tasks");
 
@@ -697,7 +752,7 @@ mod microgroove {
             read_encoders::spawn().expect("read_encoders::spawn should succeed");
 
             // start scheduled task to update display
-            render_editor::spawn().expect("render_editor::spawn should succeed");
+            render_perform_view::spawn().expect("render_perform_view::spawn should succeed");
 
             info!("[init] complete 🤘");
 
@@ -847,9 +902,9 @@ mod microgroove {
             shared = [input_mode, sequencer],
             local = [display]
         )]
-        fn render_editor(ctx: render_editor::Context) {
+        fn render_perform_view(ctx: render_perform_view::Context) {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                display::render_editor(ctx.local.display, sequencer.current_track(), *input_mode, sequencer.is_playing()).unwrap();
+                display::render_perform_view(ctx.local.display, sequencer.is_playing(), sequencer.current_track(), *input_mode, sequencer.is_playing()).unwrap();
             });
         }
 
