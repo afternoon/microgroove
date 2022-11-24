@@ -11,7 +11,7 @@ mod microgroove {
         use embedded_midi::MidiMessage;
         use defmt::trace;
         use fugit::{ExtU64, MicrosDurationU64};
-        use heapless::Vec;
+        use heapless::{Vec, HistoryBuffer};
         use midi_types::{Channel, Note, Value14, Value7};
 
         /// Represent a step in a musical sequence.
@@ -99,10 +99,12 @@ mod microgroove {
         }
 
         /// Configure how many tracks are available.
-        pub const TRACK_COUNT: usize = 16;
+        const TRACK_COUNT: usize = 16;
 
         // TODO will cause issues if polyphony
-        pub const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
+        const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
+
+        const MIDI_HISTORY_SAMPLE_COUNT: usize = 6;
 
         #[derive(Debug)]
         pub enum ScheduledMidiMessage {
@@ -110,11 +112,16 @@ mod microgroove {
             Delayed(MidiMessage, MicrosDurationU64),
         }
 
+        const DEFAULT_BPM: u64 = 130;
+        const DEFAULT_TICK_DURATION_US: u64 = (60 / DEFAULT_BPM) / 24;
+
         pub struct Sequencer {
             pub tracks: Vec<Option<Track>, TRACK_COUNT>,
-            pub current_track: usize,
-            pub playing: bool,
-            pub tick: u32,
+            current_track: usize,
+            playing: bool,
+            tick: u32,
+            last_tick_instant_us: Option<u64>,
+            midi_tick_history: HistoryBuffer<u64, MIDI_HISTORY_SAMPLE_COUNT>,
         }
 
         impl Sequencer {
@@ -132,14 +139,35 @@ mod microgroove {
                     current_track: 0,
                     playing: false,
                     tick: 0,
+                    last_tick_instant_us: None,
+                    midi_tick_history: HistoryBuffer::<u64, MIDI_HISTORY_SAMPLE_COUNT>::new(),
                 }
             }
-            
-            pub fn advance(&mut self) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
-                let mut output_messages = Vec::new();
 
-                let tick_duration: MicrosDurationU64 = 20_830.micros(); // time between ticks at 120bpm
-                panic!("TODO calculate tick duration");
+            pub fn is_playing(&self) -> bool {
+                self.playing
+            }
+
+            pub fn start_playing(&mut self) {
+                self.tick = 0;
+                self.playing = true
+            }
+
+            pub fn stop_playing(&mut self) {
+                self.playing = false;
+            }
+
+            pub fn continue_playing(&mut self) {
+                self.playing = true
+            }
+
+            pub fn current_track(&self) -> Option<&Track> {
+                self.tracks.get(self.current_track).unwrap().as_ref()
+            }
+            
+            pub fn advance(&mut self, now_us: u64) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
+                let mut output_messages = Vec::new();
+                let tick_duration = self.average_tick_duration(now_us);
 
                 for track in &self.tracks {
                     if let Some(track) = track {
@@ -188,25 +216,22 @@ mod microgroove {
                 output_messages
             }
 
-            pub fn is_playing(&self) -> bool {
-                self.playing
-            }
+            /// Calculate average time between last k MIDI ticks. Defaults to tick frequency of
+            /// 19,230ms, which is equivalent to 130BPM.
+            fn average_tick_duration(&mut self, now_us: u64) -> MicrosDurationU64 {
+                let mut tick_duration = DEFAULT_TICK_DURATION_US.micros();
 
-            pub fn start_playing(&mut self) {
-                self.tick = 0;
-                self.playing = true
-            }
+                if let Some(last_tick_instant_us) = self.last_tick_instant_us {
+                    let last_tick_duration = last_tick_instant_us - now_us;
+                    self.midi_tick_history.write(last_tick_duration);
+                    tick_duration = (self.midi_tick_history.as_slice().iter().sum::<u64>()
+                        / self.midi_tick_history.len() as u64)
+                        .micros();
+                }
 
-            pub fn stop_playing(&mut self) {
-                self.playing = false;
-            }
+                self.last_tick_instant_us = Some(now_us);
 
-            pub fn continue_playing(&mut self) {
-                self.playing = true
-            }
-
-            pub fn current_track(&self) -> Option<&Track> {
-                self.tracks.get(self.current_track).unwrap().as_ref()
+                tick_duration
             }
         }
     }
@@ -341,7 +366,7 @@ mod microgroove {
             )
                 .draw(display)?;
 
-            display.flush();
+            display.flush()?;
             Ok(())
         }
 
@@ -354,11 +379,11 @@ mod microgroove {
                 draw_sequence()?;
                 draw_params()?;
             }
-            display.flush();
+            display.flush()?;
             Ok(())
         }
 
-        fn draw_header(input_mode: InputMode) -> DisplayResult {
+        fn draw_header(_input_mode: InputMode) -> DisplayResult {
             panic!("TODO");
         }
 
@@ -709,7 +734,8 @@ mod microgroove {
                     match message {
                         MidiMessage::TimingClock => {
                             trace!("[midi] clock");
-                            let messages = sequencer.advance();
+                            let now_us = monotonics::now().duration_since_epoch().to_micros();
+                            let messages = sequencer.advance(now_us);
                             for message in messages {
                                 match message {
                                     ScheduledMidiMessage::Immediate(message) => {
