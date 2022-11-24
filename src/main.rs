@@ -198,6 +198,10 @@ mod microgroove {
             pub fn current_track(&self) -> Option<&Track> {
                 self.tracks.get(self.current_track).unwrap().as_ref()
             }
+
+            pub fn current_track_active_step_num(&self) -> Option<u32> {
+                self.current_track().map(|track| track.step_num(self.tick))
+            }
             
             pub fn advance(&mut self, now_us: u64) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
                 let mut output_messages = Vec::new();
@@ -423,10 +427,10 @@ mod microgroove {
             Ok(())
         }
 
-        pub fn render_perform_view(display: &mut Display, track: Option<&Track>, input_mode: InputMode, playing: bool) -> DisplayResult {
+        pub fn render_perform_view(display: &mut Display, track: Option<&Track>, input_mode: InputMode, playing: bool, active_step_num: Option<u32>) -> DisplayResult {
             draw_header(display, playing, input_mode)?;
             if let Some(track) = track {
-                draw_sequence(display, track)?;
+                draw_sequence(display, track, active_step_num.unwrap())?;
                 draw_params(display)?;
             }
             else {
@@ -468,7 +472,7 @@ mod microgroove {
             warning(display, "TRACK DISABLED")
         }
 
-        fn draw_sequence(display: &mut Display, track: &Track) -> DisplayResult {
+        fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> DisplayResult {
             let step_width: u32 = if track.length < 17 { 6 } else { 3 };
             let step_height: u32 = step_width;
             let display_sequence_margin_left = (DISPLAY_WIDTH - (track.length as i32 * (step_width as i32 + 1))) / 2;
@@ -477,7 +481,7 @@ mod microgroove {
             let note_y_pos_min: u32 = 35;
             let note_y_pos_max: u32 = 9 + step_height as u32;
             let step_size = Size::new(step_width, step_height);
-            let mut step_num = 0;
+            let mut step_num: u32 = 0;
 
             // erase sequence region of display
             Rectangle::new(Point::new(SEQUENCE_X_POS, SEQUENCE_Y_POS), Size::new(SEQUENCE_WIDTH, SEQUENCE_HEIGHT))
@@ -486,7 +490,7 @@ mod microgroove {
 
             for step in &track.steps {
                 if let Some(step) = step {
-                    let x = display_sequence_margin_left + (step_num * (step_width as i32 + 1));
+                    let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
                     let x2 = x + step_width as i32;
                     let note_num: u8 = step.note.into();
                     let y = map_to_range(
@@ -496,16 +500,17 @@ mod microgroove {
                         note_y_pos_min,
                         note_y_pos_max
                     );
+
+                    // draw step
+                    let step_style = if step_num == active_step_num { outline_style() } else { filled_style() };
                     Rectangle::new(Point::new(x as i32, y as i32), step_size)
-                        .into_styled(outline_style())
+                        .into_styled(step_style)
                         .draw(display)?;
 
                     // draw step underline
                     Line::new(Point::new(x, SEQUENCE_UNDERLINE_Y_POS), Point::new(x2, SEQUENCE_UNDERLINE_Y_POS))
                         .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
                         .draw(display)?;
-
-                    // TODO fill active step
                 }
                 step_num += 1;
             }
@@ -527,6 +532,10 @@ mod microgroove {
 
         fn background_style() -> PrimitiveStyle<BinaryColor> {
             PrimitiveStyle::with_fill(BinaryColor::Off)
+        }
+
+        fn filled_style() -> PrimitiveStyle<BinaryColor> {
+            PrimitiveStyle::with_fill(BinaryColor::On)
         }
 
         fn outline_style() -> PrimitiveStyle<BinaryColor> {
@@ -1038,11 +1047,13 @@ mod microgroove {
         )]
         fn render_perform_view(ctx: render_perform_view::Context) {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
+                let track = sequencer.current_track();
                 display::render_perform_view(
                     ctx.local.display,
-                    sequencer.current_track(),
+                    track,
                     *input_mode,
-                    sequencer.is_playing()
+                    sequencer.is_playing(),
+                    sequencer.current_track_active_step_num(),
                 ).unwrap();
             });
         }
