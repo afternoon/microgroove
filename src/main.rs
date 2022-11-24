@@ -335,7 +335,7 @@ mod microgroove {
             },
             pixelcolor::BinaryColor,
             prelude::*,
-            primitives::{Rectangle, PrimitiveStyle},
+            primitives::{Rectangle, PrimitiveStyle, PrimitiveStyleBuilder},
             text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
         };
 
@@ -350,6 +350,10 @@ mod microgroove {
         const DISPLAY_WIDTH: i32 = 128;
         const DISPLAY_CENTER: i32 = DISPLAY_WIDTH / 2;
 
+        const WARNING_Y_POS: i32 = 20;
+        const WARNING_PADDING: i32 = 5;
+        const WARNING_BORDER: u32 = 2;
+
         const HEADER_WIDTH: u32 = DISPLAY_WIDTH as u32;
         const HEADER_HEIGHT: u32 = 5;
         const HEADER_PLAYING_ICON_X_POS: i32 = 24;
@@ -359,7 +363,7 @@ mod microgroove {
             display.clear();
             Text::with_text_style(
                 "MICROGROOVE",
-                Point::new(DISPLAY_CENTER, 20),
+                Point::new(DISPLAY_CENTER, WARNING_Y_POS),
                 big_character_style(),
                 centered()
             )
@@ -416,8 +420,8 @@ mod microgroove {
             Ok(())
         }
 
-        fn draw_disabled_track_warning(_display: &mut Display) -> DisplayResult {
-            panic!("TODO");
+        fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
+            warning(display, "TRACK DISABLED")
         }
 
         fn draw_sequence(_display: &mut Display) -> DisplayResult {
@@ -440,6 +444,14 @@ mod microgroove {
             PrimitiveStyle::with_fill(BinaryColor::Off)
         }
 
+        fn warning_box_style() -> PrimitiveStyle<BinaryColor> {
+            PrimitiveStyleBuilder::new()
+                .stroke_color(BinaryColor::On)
+                .stroke_width(WARNING_BORDER)
+                .fill_color(BinaryColor::Off)
+                .build()
+        }
+
         fn centered() -> TextStyle {
             TextStyleBuilder::new()
                 .alignment(Alignment::Center)
@@ -452,6 +464,34 @@ mod microgroove {
                 .alignment(Alignment::Right)
                 .baseline(Baseline::Top)
                 .build()
+        }
+
+        fn warning(display: &mut Display, text: &str) -> DisplayResult {
+            let char_width = 8; // assumes FONT_8X13_ITALIC
+            let char_height = 13; // assumes FONT_8X13_ITALIC
+            let space_width = 1; // TODO check this
+            let text_width = ((text.len() * char_width)
+                + ((text.len() - 1) * space_width)
+                + (WARNING_PADDING as usize * 2)) as i32;
+            let text_margin_left = (DISPLAY_WIDTH - text_width) / 2;
+            let warning_width = DISPLAY_WIDTH - (text_margin_left * 2);
+            let warning_height = char_height + WARNING_PADDING * 2;
+            let warning_text_y_pos = WARNING_Y_POS + WARNING_PADDING + WARNING_BORDER as i32;
+            Rectangle::new(
+                Point::new(text_margin_left, WARNING_Y_POS),
+                Size::new(warning_width as u32, warning_height as u32),
+
+            )
+                .into_styled(warning_box_style())
+                .draw(display)?;
+            Text::with_text_style(
+                text,
+                Point::new(DISPLAY_CENTER, warning_text_y_pos),
+                big_character_style(),
+                centered()
+            )
+                .draw(display)?;
+            Ok(())
         }
     }
     
