@@ -4,17 +4,60 @@
 use panic_probe as _;
 
 mod microgroove {
+    /// Model parameters as mutable values with metadata (name)
+    pub mod params {
+        extern crate alloc;
+        use alloc::boxed::Box;
+        use core::fmt::{self, Debug, Display, Formatter};
+        use defmt::debug;
+        use heapless::Vec;
+
+        pub trait Param: Debug + Display + Send {
+            fn name(&self) -> &str { "DISABLED" }
+            fn increment(&mut self, n: u32);
+        }
+
+        pub trait ParamAdapter {
+            fn apply(&mut self) {}
+        }
+
+        pub type ParamList = Vec<Box<dyn Param>, 6>;
+
+        #[derive(Debug)]
+        pub struct DummyParam {}
+
+        impl DummyParam {
+            pub fn new() -> DummyParam {
+                DummyParam {  }
+            }
+        }
+
+        impl Param for DummyParam {
+            fn name(&self) -> &str { "DUMMY" }
+            fn increment(&mut self, n: u32) {
+                debug!("DummyParam::increment");
+            }
+        }
+
+        impl Display for DummyParam {
+            fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+                write!(f, "DUMMY")
+            }
+        }
+    }
+
     /// Core data model for a MIDI sequencer. Provides types to represent a sequencer as a set of
     /// tracks, each with a Sequence of Steps. A Step consists of the basic information required to
     /// play a note.
-    pub mod sequencer {
+    pub mod sequence {
+        extern crate alloc;
+        use alloc::boxed::Box;
+        use core::fmt::{Debug, Display};
         use core::cmp::Ordering;
-
-        use embedded_midi::MidiMessage;
-        use defmt::trace;
-        use fugit::{ExtU64, MicrosDurationU64};
-        use heapless::{Vec, HistoryBuffer};
+        use heapless::Vec;
         use midi_types::{Channel, Note, Value14, Value7};
+
+        use crate::microgroove::params::ParamList;
 
         /// Represent a step in a musical sequence.
         #[derive(Clone, Debug)]
@@ -89,30 +132,49 @@ mod microgroove {
 
         pub type Sequence = Vec<Option<Step>, 32>;
 
+        pub trait SequenceProcessor {
+            fn apply(&self, sequence: Sequence) -> Sequence;
+        }
+
+        pub trait Machine: Debug + Display + Send {
+            fn sequence_processor(&self) -> Box<dyn SequenceProcessor>;
+            fn params(&self) -> &mut ParamList;
+        }
+
         #[derive(Debug)]
         pub struct Track {
             pub time_division: TimeDivision,
             pub length: u8,
             pub midi_channel: Channel,
             pub steps: Sequence,
+            pub rhythm_machine: Box<dyn Machine>,
+            pub melody_machine: Box<dyn Machine>,
+            params: ParamList,
         }
 
         impl Track {
-            pub fn new() -> Track {
+            pub fn new(rhythm_machine: impl Machine, melody_machine: impl Machine) -> Track {
                 Track {
                     time_division: TimeDivision::Sixteenth,
                     length: 16,
                     midi_channel: 0.into(),
                     steps: Track::generate_sequence(),
+                    rhythm_machine: Box::new(rhythm_machine),
+                    melody_machine: Box::new(melody_machine),
+                    params: Vec::new(),
                 }
             }
 
-            fn generate_sequence() -> Sequence {
-                Self::default_sequence()
+            pub fn params(&mut self) -> &mut ParamList {
+                &mut self.params
             }
 
-            fn default_sequence() -> Sequence {
-                (0..16).map(|_x| Some(Step::new())).collect()
+            fn generate_sequence() -> Sequence {
+                Self::initial_sequence()
+            }
+
+            fn initial_sequence() -> Sequence {
+                (0..16).map(|_i| Some(Step::new())).collect()
             }
 
             pub fn should_play_on_tick(&self, tick: u32) -> bool {
@@ -131,6 +193,19 @@ mod microgroove {
                 self.steps.get(self.step_num(tick) as usize).unwrap().as_ref()
             }
         }
+    }
+
+    pub mod sequencer {
+        extern crate alloc;
+        use embedded_midi::MidiMessage;
+        use defmt::trace;
+        use fugit::{ExtU64, MicrosDurationU64};
+        use heapless::{Vec, HistoryBuffer};
+
+        use crate::microgroove::{
+            machines::unitmachine::UnitMachine,
+            sequence::Track,
+        };
 
         /// Configure how many tracks are available.
         const TRACK_COUNT: usize = 16;
@@ -162,7 +237,10 @@ mod microgroove {
             pub fn new() -> Sequencer {
                 // create a set of empty tracks
                 let mut tracks = Vec::new();
-                tracks.push(Some(Track::new())).expect("inserting track into tracks vector should succeed");
+                let track1_rhythm_machine = UnitMachine::new();
+                let track1_melody_machine = UnitMachine::new();
+                let track1 = Track::new(track1_rhythm_machine, track1_melody_machine);
+                tracks.push(Some(track1)).expect("inserting track into tracks vector should succeed");
                 for _ in 1..TRACK_COUNT {
                     tracks.push(None)
                         .expect("inserting track into tracks vector should succeed");
@@ -274,8 +352,69 @@ mod microgroove {
         }
     }
 
+    pub mod machines {
+        pub mod unitmachine {
+            extern crate alloc;
+            use core::fmt::{self, Display, Formatter};
+            use alloc::boxed::Box;
+            use crate::microgroove::{
+                sequence::{Machine, Sequence, SequenceProcessor},
+                params::{ParamList, DummyParam},
+            };
+
+            #[derive(Debug)]
+            struct UnitProcessor {}
+
+            impl UnitProcessor {
+                fn new() -> UnitProcessor {
+                    UnitProcessor {}
+                }
+            }
+
+            impl SequenceProcessor for UnitProcessor {
+                fn apply(&self, sequence: Sequence) -> Sequence {
+                    sequence
+                }
+            }
+
+            #[derive(Debug)]
+            pub struct UnitMachine {
+                sequence_processor: UnitProcessor,
+                params: ParamList,
+            }
+
+            impl UnitMachine {
+                pub fn new() -> UnitMachine {
+                    let sequence_processor = UnitProcessor::new();
+                    let mut params = ParamList::new();
+                    params.push(Box::new(DummyParam::new())).unwrap();
+                    UnitMachine { sequence_processor, params }
+                }
+            }
+
+            impl Machine for UnitMachine {
+                fn sequence_processor(&self) -> Box<dyn SequenceProcessor> {
+                    Box::new(self.sequence_processor)
+                }
+
+                fn params(&self) -> &mut ParamList {
+                   &mut self.params
+                }
+            }
+
+            impl Display for UnitMachine {
+                fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+                    write!(f, "UNIT")
+                }
+            }
+
+            unsafe impl Send for UnitMachine {}
+        }
+    }
+
     pub mod encoder {
         pub mod positional_encoder {
+            use core::fmt::Debug;
             use rp_pico::hal::gpio::DynPin;
             use rotary_encoder_hal::{Direction, Rotary};
             use defmt::error;
@@ -328,7 +467,7 @@ mod microgroove {
                 }
             }
 
-            impl core::fmt::Debug for PositionalEncoder {
+            impl Debug for PositionalEncoder {
                 fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     write!(f, "encoder")
                 }
@@ -377,8 +516,9 @@ mod microgroove {
             text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
         };
 
-        use super::{
-            sequencer::Track,
+        use crate::microgroove::{
+            sequence::Track,
+            params::ParamList,
             input::InputMode,
             peripherals::Display
         };
@@ -431,7 +571,7 @@ mod microgroove {
             draw_header(display, playing, input_mode)?;
             if let Some(track) = track {
                 draw_sequence(display, track, active_step_num.unwrap())?;
-                draw_params(display)?;
+                draw_params(display, input_mode, track)?;
             }
             else {
                 draw_disabled_track_warning(display)?;
@@ -518,8 +658,16 @@ mod microgroove {
             Ok(())
         }
 
-        fn draw_params(_display: &mut Display) -> DisplayResult {
-            panic!("TODO");
+        fn draw_params(display: &mut Display, input_mode: InputMode, track: &Track) -> DisplayResult {
+            match input_mode {
+                InputMode::Track => draw_param_table(display, input_mode, track.params()),
+                InputMode::Rhythm => draw_param_table(display, input_mode, track.rhythm_machine.params()),
+                InputMode::Melody => draw_param_table(display, input_mode, track.melody_machine.params()),
+            }
+        }
+
+        fn draw_param_table(display: &mut Display, input_mode: InputMode, params: &ParamList) -> DisplayResult {
+            Ok(())
         }
 
         fn default_character_style<'a>() -> MonoTextStyle<'a, BinaryColor> {
@@ -632,9 +780,9 @@ mod microgroove {
     /// Handle user input (encoder turns, button presses).
     pub mod input {
         use heapless::Vec;
-        use super::{
+        use crate::microgroove::{
             encoder::encoder_array::ENCODER_COUNT,
-            sequencer::Track
+            sequence::Track
         };
 
         #[derive(Clone, Copy, Debug)]
@@ -646,8 +794,20 @@ mod microgroove {
 
         /// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
         /// `MelodyMachine`, determined by `input_mode`.
-        pub fn map_encoder_input(_input_mode: InputMode, _track: Option<&Track>, _encoder_values: Vec<i32, ENCODER_COUNT>) {
-            panic!("TODO");
+        pub fn map_encoder_input(input_mode: InputMode, track: Option<&Track>, _encoder_values: Vec<i32, ENCODER_COUNT>) {
+            match input_mode {
+                InputMode::Track => {
+                    if let Some(track) = track {
+                        let params = track.params();
+                    }
+                    else {
+                        panic!("TODO create track");
+                    }
+                }
+                InputMode::Rhythm | InputMode::Melody => {
+                    panic!("TODO");
+                }
+            }
         }
     }
 
@@ -673,7 +833,7 @@ mod microgroove {
         use embedded_midi;
         use ssd1306::{mode::BufferedGraphicsMode, prelude::*, I2CDisplayInterface, Ssd1306};
         use fugit::{RateExtU32, HertzU32};
-        use super:: encoder::{
+        use super::encoder::{
             encoder_array::EncoderArray,
             positional_encoder::PositionalEncoder,
         };
@@ -824,7 +984,7 @@ mod microgroove {
         use nb::block;
         use rp_pico::hal::{gpio::Interrupt::EdgeLow, timer::{monotonic::Monotonic, Alarm0}};
 
-        use super::{
+        use crate::microgroove::{
             display,
             encoder::encoder_array::EncoderArray,
             input::{self, InputMode},
