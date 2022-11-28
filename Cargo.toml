@@ -8,6 +8,7 @@ homepage = "https://github.com/afternoon/microgroove"
 repository = "https://github.com/afternoon/microgroove"
 
 [dependencies]
+alloc-cortex-m = "0.4.3"
 cortex-m = "0.7.6"
 cortex-m-rt = "0.7.1"
 cortex-m-rtic = "1.1.3"

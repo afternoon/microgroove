@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(alloc_error_handler)]
 
 use panic_probe as _;
 
@@ -120,7 +121,7 @@ mod microgroove {
             }
         }
 
-        #[derive(Debug)]
+        #[derive(Clone, Copy, Debug)]
         pub enum TimeDivision {
             NinetySixth = 1, // corresponds to midi standard of 24 clock pulses per quarter note
             ThirtySecond = 3,
@@ -138,7 +139,8 @@ mod microgroove {
 
         pub trait Machine: Debug + Display + Send {
             fn sequence_processor(&self) -> Box<dyn SequenceProcessor>;
-            fn params(&self) -> &mut ParamList;
+            fn params(&self) -> &ParamList;
+            fn params_mut(&mut self) -> &mut ParamList;
         }
 
         #[derive(Debug)]
@@ -153,7 +155,7 @@ mod microgroove {
         }
 
         impl Track {
-            pub fn new(rhythm_machine: impl Machine, melody_machine: impl Machine) -> Track {
+            pub fn new(rhythm_machine: impl Machine + 'static, melody_machine: impl Machine + 'static) -> Track {
                 Track {
                     time_division: TimeDivision::Sixteenth,
                     length: 16,
@@ -165,7 +167,11 @@ mod microgroove {
                 }
             }
 
-            pub fn params(&mut self) -> &mut ParamList {
+            pub fn params(&self) -> &ParamList {
+                &self.params
+            }
+
+            pub fn params_mut(&mut self) -> &mut ParamList {
                 &mut self.params
             }
 
@@ -277,6 +283,10 @@ mod microgroove {
                 self.tracks.get(self.current_track).unwrap().as_ref()
             }
 
+            pub fn current_track_mut(&mut self) -> Option<&mut Track> {
+                self.tracks.get_mut(self.current_track).unwrap().as_mut()
+            }
+
             pub fn current_track_active_step_num(&self) -> Option<u32> {
                 self.current_track().map(|track| track.step_num(self.tick))
             }
@@ -362,7 +372,7 @@ mod microgroove {
                 params::{ParamList, DummyParam},
             };
 
-            #[derive(Debug)]
+            #[derive(Clone, Copy, Debug)]
             struct UnitProcessor {}
 
             impl UnitProcessor {
@@ -397,7 +407,11 @@ mod microgroove {
                     Box::new(self.sequence_processor)
                 }
 
-                fn params(&self) -> &mut ParamList {
+                fn params(&self) -> &ParamList {
+                   &self.params
+                }
+
+                fn params_mut(&mut self) -> &mut ParamList {
                    &mut self.params
                 }
             }
@@ -794,11 +808,11 @@ mod microgroove {
 
         /// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
         /// `MelodyMachine`, determined by `input_mode`.
-        pub fn map_encoder_input(input_mode: InputMode, track: Option<&Track>, _encoder_values: Vec<i32, ENCODER_COUNT>) {
+        pub fn map_encoder_input(input_mode: InputMode, track: Option<&mut Track>, _encoder_values: Vec<i32, ENCODER_COUNT>) {
             match input_mode {
                 InputMode::Track => {
                     if let Some(track) = track {
-                        let params = track.params();
+                        let params = track.params_mut();
                     }
                     else {
                         panic!("TODO create track");
@@ -978,6 +992,7 @@ mod microgroove {
         dispatchers = [USBCTRL_IRQ, DMA_IRQ_0, DMA_IRQ_1, PWM_IRQ_WRAP]
     )]
     mod app {
+        use alloc_cortex_m::CortexMHeap;
         use defmt::{self, error, info, trace};
         use defmt_rtt as _;
         use midi_types::MidiMessage;
@@ -992,6 +1007,10 @@ mod microgroove {
             peripherals::{ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin, Display, MidiIn, MidiOut, setup},
             sequencer::{ScheduledMidiMessage, Sequencer},
         };
+
+        #[global_allocator]
+        static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
+        const HEAP_SIZE_BYTES: usize = 16 * 1024; // 16KB!
 
         /// Define RTIC monotonic timer. Also used for defmt.
         #[monotonic(binds = TIMER_IRQ_0, default = true)]
@@ -1036,6 +1055,11 @@ mod microgroove {
         #[init]
         fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
             info!("[init] hello world!");
+
+            // initialise allocator for dynamic structures (machines, params, etc)
+            unsafe {
+                ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES)
+            }
 
             // configure RTIC monotonic as source of timestamps for defmt
             defmt::timestamp!("{=u64:us}", {
@@ -1193,7 +1217,7 @@ mod microgroove {
         fn read_encoders(ctx: read_encoders::Context) {
             if let Some(_changes) = ctx.local.encoders.update() {
                 (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                    input::map_encoder_input(*input_mode, sequencer.current_track(), ctx.local.encoders.take_values());
+                    input::map_encoder_input(*input_mode, sequencer.current_track_mut(), ctx.local.encoders.take_values());
                 })
             }
         }
@@ -1225,6 +1249,14 @@ mod microgroove {
             loop {
                 cortex_m::asm::nop();
             }
+        }
+
+        // OOM handler
+        #[alloc_error_handler]
+        fn alloc_error(_layout: core::alloc::Layout) -> ! {
+            error!("TICK TICK TICK TICK OOM!");
+            cortex_m::asm::bkpt();
+            loop {}
         }
     }
 }
