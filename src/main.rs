@@ -14,7 +14,9 @@ mod microgroove {
         use heapless::Vec;
 
         pub trait Param: Debug + Send {
-            fn name(&self) -> &str { "DISABLED" }
+            fn name(&self) -> &str {
+                "DISABLED"
+            }
             fn value_str(&self) -> &str;
             fn increment(&mut self, n: u32);
         }
@@ -30,13 +32,17 @@ mod microgroove {
 
         impl DummyParam {
             pub fn new() -> DummyParam {
-                DummyParam {  }
+                DummyParam {}
             }
         }
 
         impl Param for DummyParam {
-            fn name(&self) -> &str { "DUMMY" }
-            fn value_str(&self) -> &str { "DUMMY" }
+            fn name(&self) -> &str {
+                "DUMMY"
+            }
+            fn value_str(&self) -> &str {
+                "DUMMY"
+            }
             fn increment(&mut self, _n: u32) {
                 debug!("DummyParam::increment");
             }
@@ -49,8 +55,8 @@ mod microgroove {
     pub mod sequence {
         extern crate alloc;
         use alloc::boxed::Box;
-        use core::fmt::{Debug, Display};
         use core::cmp::Ordering;
+        use core::fmt::{Debug, Display};
         use heapless::Vec;
         use midi_types::{Channel, Note, Value14, Value7};
 
@@ -70,7 +76,7 @@ mod microgroove {
             /// Delay playing this step for % of track time division. Used for swing. Can be abused
             /// for general timing madness. Note that its not possible to play a step early. This
             /// is because Microgroove depends on an external clock.
-            pub delay: u8
+            pub delay: u8,
         }
 
         impl Step {
@@ -107,11 +113,9 @@ mod microgroove {
                 let other_note_num: u8 = other.note.into();
                 if self_note_num == other_note_num {
                     Ordering::Equal
-                }
-                else if self_note_num < other_note_num {
+                } else if self_note_num < other_note_num {
                     Ordering::Less
-                }
-                else {
+                } else {
                     Ordering::Greater
                 }
             }
@@ -152,7 +156,10 @@ mod microgroove {
         }
 
         impl Track {
-            pub fn new(rhythm_machine: impl Machine + 'static, melody_machine: impl Machine + 'static) -> Track {
+            pub fn new(
+                rhythm_machine: impl Machine + 'static,
+                melody_machine: impl Machine + 'static,
+            ) -> Track {
                 Track {
                     time_division: TimeDivision::Sixteenth,
                     length: 16,
@@ -190,25 +197,25 @@ mod microgroove {
 
             pub fn step_at_tick(&self, tick: u32) -> Option<&Step> {
                 if !self.should_play_on_tick(tick) {
-                    return None
+                    return None;
                 }
 
-                self.steps.get(self.step_num(tick) as usize).unwrap().as_ref()
+                self.steps
+                    .get(self.step_num(tick) as usize)
+                    .unwrap()
+                    .as_ref()
             }
         }
     }
 
     pub mod sequencer {
         extern crate alloc;
-        use embedded_midi::MidiMessage;
         use defmt::trace;
+        use embedded_midi::MidiMessage;
         use fugit::{ExtU64, MicrosDurationU64};
-        use heapless::{Vec, HistoryBuffer};
+        use heapless::{HistoryBuffer, Vec};
 
-        use crate::microgroove::{
-            machines::unitmachine::UnitMachine,
-            sequence::Track,
-        };
+        use crate::microgroove::{machines::unitmachine::UnitMachine, sequence::Track};
 
         /// Configure how many tracks are available.
         const TRACK_COUNT: usize = 16;
@@ -244,10 +251,12 @@ mod microgroove {
             pub fn new() -> Sequencer {
                 // create a set of empty tracks
                 let mut tracks = Vec::new();
-                tracks.push(Some(new_track_with_default_machines()))
+                tracks
+                    .push(Some(new_track_with_default_machines()))
                     .expect("inserting track into tracks vector should succeed");
                 for _ in 1..TRACK_COUNT {
-                    tracks.push(None)
+                    tracks
+                        .push(None)
                         .expect("inserting track into tracks vector should succeed");
                 }
                 Sequencer {
@@ -286,23 +295,27 @@ mod microgroove {
             }
 
             pub fn current_track_active_step_num(&self) -> Option<u32> {
-                self.current_track().as_ref().map(|track| track.step_num(self.tick))
+                self.current_track()
+                    .as_ref()
+                    .map(|track| track.step_num(self.tick))
             }
 
-            pub fn advance(&mut self, now_us: u64) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
+            pub fn advance(
+                &mut self,
+                now_us: u64,
+            ) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
                 let mut output_messages = Vec::new();
                 let tick_duration = self.average_tick_duration(now_us);
 
                 for track in &self.tracks {
                     if let Some(track) = track {
                         if let Some(step) = track.step_at_tick(self.tick) {
-                            let note_on_message = MidiMessage::NoteOn(
-                                track.midi_channel,
-                                step.note,
-                                step.velocity,
-                            );
+                            let note_on_message =
+                                MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
 
-                            output_messages.push(ScheduledMidiMessage::Immediate(note_on_message)).unwrap();
+                            output_messages
+                                .push(ScheduledMidiMessage::Immediate(note_on_message))
+                                .unwrap();
 
                             let midi_channel: u8 = track.midi_channel.into();
                             let note: u8 = step.note.into();
@@ -314,18 +327,20 @@ mod microgroove {
                                 velocity
                             );
 
-                            let note_off_message = MidiMessage::NoteOff(
-                                track.midi_channel,
-                                step.note,
-                                0.into()
-                            );
+                            let note_off_message =
+                                MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
                             let note_off_time = ((tick_duration.to_micros()
                                 * (track.time_division as u64)
                                 * step.length_step_cents as u64)
                                 / 100)
                                 .micros();
 
-                            output_messages.push(ScheduledMidiMessage::Delayed(note_off_message, note_off_time)).unwrap();
+                            output_messages
+                                .push(ScheduledMidiMessage::Delayed(
+                                    note_off_message,
+                                    note_off_time,
+                                ))
+                                .unwrap();
 
                             trace!(
                                 "Sequencer::advance: scheduling note off message for {}us",
@@ -363,11 +378,11 @@ mod microgroove {
     pub mod machines {
         pub mod unitmachine {
             extern crate alloc;
-            use alloc::boxed::Box;
             use crate::microgroove::{
+                params::{DummyParam, ParamList},
                 sequence::{Machine, Sequence, SequenceProcessor},
-                params::{ParamList, DummyParam},
             };
+            use alloc::boxed::Box;
 
             #[derive(Clone, Copy, Debug)]
             struct UnitProcessor {}
@@ -395,23 +410,28 @@ mod microgroove {
                     let sequence_processor = UnitProcessor::new();
                     let mut params = ParamList::new();
                     params.push(Box::new(DummyParam::new())).unwrap();
-                    UnitMachine { sequence_processor, params }
+                    UnitMachine {
+                        sequence_processor,
+                        params,
+                    }
                 }
             }
 
             impl Machine for UnitMachine {
-                fn name(&self) -> &str { "UNIT" }
+                fn name(&self) -> &str {
+                    "UNIT"
+                }
 
                 fn sequence_processor(&self) -> Box<dyn SequenceProcessor> {
                     Box::new(self.sequence_processor)
                 }
 
                 fn params(&self) -> &ParamList {
-                   &self.params
+                    &self.params
                 }
 
                 fn params_mut(&mut self) -> &mut ParamList {
-                   &mut self.params
+                    &mut self.params
                 }
             }
 
@@ -422,9 +442,9 @@ mod microgroove {
     pub mod encoder {
         pub mod positional_encoder {
             use core::fmt::Debug;
-            use rp_pico::hal::gpio::DynPin;
-            use rotary_encoder_hal::{Direction, Rotary};
             use defmt::error;
+            use rotary_encoder_hal::{Direction, Rotary};
+            use rp_pico::hal::gpio::DynPin;
 
             pub struct PositionalEncoder {
                 encoder: Rotary<DynPin, DynPin>,
@@ -454,9 +474,7 @@ mod microgroove {
                             self.value += 1;
                             Some(self.value)
                         }
-                        Ok(Direction::None) => {
-                            None
-                        }
+                        Ok(Direction::None) => None,
                         Err(_error) => {
                             error!("could not update encoder");
                             None
@@ -482,8 +500,8 @@ mod microgroove {
         }
 
         pub mod encoder_array {
-            use heapless::Vec;
             use super::positional_encoder::PositionalEncoder;
+            use heapless::Vec;
 
             pub const ENCODER_COUNT: usize = 6;
 
@@ -498,12 +516,23 @@ mod microgroove {
                 }
 
                 pub fn update(&mut self) -> Option<()> {
-                    let any_changes = self.encoders.iter_mut().map(|enc| enc.update()).any(|opt| opt.is_some());
-                    if any_changes { Some(()) } else { None }
+                    let any_changes = self
+                        .encoders
+                        .iter_mut()
+                        .map(|enc| enc.update())
+                        .any(|opt| opt.is_some());
+                    if any_changes {
+                        Some(())
+                    } else {
+                        None
+                    }
                 }
 
                 pub fn take_values(&mut self) -> Vec<i32, ENCODER_COUNT> {
-                    self.encoders.iter_mut().map(|enc| enc.take_value()).collect()
+                    self.encoders
+                        .iter_mut()
+                        .map(|enc| enc.take_value())
+                        .collect()
                 }
             }
         }
@@ -516,20 +545,17 @@ mod microgroove {
         use display_interface::DisplayError;
         use embedded_graphics::{
             mono_font::{
-                ascii::{FONT_8X13_ITALIC, FONT_4X6},
+                ascii::{FONT_4X6, FONT_8X13_ITALIC},
                 MonoTextStyle,
             },
             pixelcolor::BinaryColor,
             prelude::*,
-            primitives::{Rectangle, PrimitiveStyle, PrimitiveStyleBuilder, Line},
+            primitives::{Line, PrimitiveStyle, PrimitiveStyleBuilder, Rectangle},
             text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
         };
 
         use crate::microgroove::{
-            sequence::Track,
-            params::ParamList,
-            input::InputMode,
-            peripherals::Display
+            input::InputMode, params::ParamList, peripherals::Display, sequence::Track,
         };
 
         type DisplayResult = Result<(), DisplayError>;
@@ -567,56 +593,80 @@ mod microgroove {
                 "MICROGROOVE",
                 Point::new(DISPLAY_CENTER, WARNING_Y_POS),
                 big_character_style(),
-                centered()
+                centered(),
             )
-                .draw(display)?;
+            .draw(display)?;
             Text::with_baseline(
                 "I wanna go bang",
                 Point::new(37, 42),
                 default_character_style(),
-                Baseline::Top
+                Baseline::Top,
             )
-                .draw(display)?;
+            .draw(display)?;
             display.flush()?;
             Ok(())
         }
 
-        pub fn render_perform_view(display: &mut Display, track: &Option<Track>, input_mode: InputMode, playing: bool, active_step_num: Option<u32>) -> DisplayResult {
+        pub fn render_perform_view(
+            display: &mut Display,
+            track: &Option<Track>,
+            input_mode: InputMode,
+            playing: bool,
+            active_step_num: Option<u32>,
+        ) -> DisplayResult {
             draw_header(display, playing, input_mode)?;
             if let Some(track) = track {
                 draw_sequence(display, track, active_step_num.unwrap())?;
                 draw_params(display, input_mode, track)?;
-            }
-            else {
+            } else {
                 draw_disabled_track_warning(display)?;
             }
             display.flush()?;
             Ok(())
         }
 
-        fn draw_header(display: &mut Display, playing: bool, input_mode: InputMode) -> DisplayResult {
+        fn draw_header(
+            display: &mut Display,
+            playing: bool,
+            input_mode: InputMode,
+        ) -> DisplayResult {
             Rectangle::new(Point::zero(), Size::new(HEADER_WIDTH, HEADER_HEIGHT))
                 .into_styled(background_style())
                 .draw(display)?;
             Text::with_text_style("TRK", Point::zero(), default_character_style(), centered())
                 .draw(display)?;
             if playing {
-                Text::with_baseline(">", Point::new(HEADER_PLAYING_ICON_X_POS, 0), default_character_style(), Baseline::Top)
-                    .draw(display)?;
+                Text::with_baseline(
+                    ">",
+                    Point::new(HEADER_PLAYING_ICON_X_POS, 0),
+                    default_character_style(),
+                    Baseline::Top,
+                )
+                .draw(display)?;
             }
             let title = match input_mode {
                 InputMode::Track => "TRACK",
                 InputMode::Rhythm => "RHYTHM",
                 InputMode::Melody => "MELODY",
             };
-            Text::with_text_style(title, Point::new(DISPLAY_CENTER, 0), default_character_style(), centered())
-                .draw(display)?;
+            Text::with_text_style(
+                title,
+                Point::new(DISPLAY_CENTER, 0),
+                default_character_style(),
+                centered(),
+            )
+            .draw(display)?;
             match input_mode {
                 InputMode::Track => { /* don't do nuffink */ }
                 InputMode::Rhythm | InputMode::Melody => {
                     let machine_name = "MACHINE_NAME";
-                    Text::with_text_style(machine_name, Point::new(DISPLAY_WIDTH, 0), default_character_style(), right_align())
-                        .draw(display)?;
+                    Text::with_text_style(
+                        machine_name,
+                        Point::new(DISPLAY_WIDTH, 0),
+                        default_character_style(),
+                        right_align(),
+                    )
+                    .draw(display)?;
                 }
             }
             Ok(())
@@ -626,25 +676,50 @@ mod microgroove {
             warning(display, "TRACK DISABLED")
         }
 
-        fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> DisplayResult {
+        fn draw_sequence(
+            display: &mut Display,
+            track: &Track,
+            active_step_num: u32,
+        ) -> DisplayResult {
             let step_width: u32 = if track.length < 17 { 6 } else { 3 };
             let step_height: u32 = step_width;
-            let display_sequence_margin_left = (DISPLAY_WIDTH - (track.length as i32 * (step_width as i32 + 1))) / 2;
-            let note_min: u8 = track.steps.iter().min().unwrap().as_ref().unwrap().note.into();
-            let note_max: u8 = track.steps.iter().max().unwrap().as_ref().unwrap().note.into();
+            let display_sequence_margin_left =
+                (DISPLAY_WIDTH - (track.length as i32 * (step_width as i32 + 1))) / 2;
+            let note_min: u8 = track
+                .steps
+                .iter()
+                .min()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .note
+                .into();
+            let note_max: u8 = track
+                .steps
+                .iter()
+                .max()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .note
+                .into();
             let note_y_pos_min: u32 = 35;
             let note_y_pos_max: u32 = 9 + step_height as u32;
             let step_size = Size::new(step_width, step_height);
             let mut step_num: u32 = 0;
 
             // erase sequence region of display
-            Rectangle::new(Point::new(SEQUENCE_X_POS, SEQUENCE_Y_POS), Size::new(SEQUENCE_WIDTH, SEQUENCE_HEIGHT))
-                .into_styled(background_style())
-                .draw(display)?;
+            Rectangle::new(
+                Point::new(SEQUENCE_X_POS, SEQUENCE_Y_POS),
+                Size::new(SEQUENCE_WIDTH, SEQUENCE_HEIGHT),
+            )
+            .into_styled(background_style())
+            .draw(display)?;
 
             for step in &track.steps {
                 if let Some(step) = step {
-                    let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
+                    let x =
+                        display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
                     let x2 = x + step_width as i32;
                     let note_num: u8 = step.note.into();
                     let y = map_to_range(
@@ -652,19 +727,26 @@ mod microgroove {
                         note_min as u32,
                         note_max as u32,
                         note_y_pos_min,
-                        note_y_pos_max
+                        note_y_pos_max,
                     );
 
                     // draw step
-                    let step_style = if step_num == active_step_num { outline_style() } else { filled_style() };
+                    let step_style = if step_num == active_step_num {
+                        outline_style()
+                    } else {
+                        filled_style()
+                    };
                     Rectangle::new(Point::new(x as i32, y as i32), step_size)
                         .into_styled(step_style)
                         .draw(display)?;
 
                     // draw step underline
-                    Line::new(Point::new(x, SEQUENCE_UNDERLINE_Y_POS), Point::new(x2, SEQUENCE_UNDERLINE_Y_POS))
-                        .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-                        .draw(display)?;
+                    Line::new(
+                        Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
+                        Point::new(x2, SEQUENCE_UNDERLINE_Y_POS),
+                    )
+                    .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
+                    .draw(display)?;
                 }
                 step_num += 1;
             }
@@ -672,16 +754,31 @@ mod microgroove {
             Ok(())
         }
 
-        fn draw_params(display: &mut Display, input_mode: InputMode, track: &Track) -> DisplayResult {
+        fn draw_params(
+            display: &mut Display,
+            input_mode: InputMode,
+            track: &Track,
+        ) -> DisplayResult {
             match input_mode {
                 InputMode::Track => draw_param_table(display, input_mode, track.params()),
-                InputMode::Rhythm => draw_param_table(display, input_mode, track.rhythm_machine.params()),
-                InputMode::Melody => draw_param_table(display, input_mode, track.melody_machine.params()),
+                InputMode::Rhythm => {
+                    draw_param_table(display, input_mode, track.rhythm_machine.params())
+                }
+                InputMode::Melody => {
+                    draw_param_table(display, input_mode, track.melody_machine.params())
+                }
             }
         }
 
-        fn draw_param_table(display: &mut Display, input_mode: InputMode, params: &ParamList) -> DisplayResult {
-            let is_track = match input_mode { InputMode::Track => true, _ => false};
+        fn draw_param_table(
+            display: &mut Display,
+            input_mode: InputMode,
+            params: &ParamList,
+        ) -> DisplayResult {
+            let is_track = match input_mode {
+                InputMode::Track => true,
+                _ => false,
+            };
 
             let col_content_width = 40;
             let col_padding = 8;
@@ -691,8 +788,16 @@ mod microgroove {
             let name1_x: i32 = if is_track { 60 } else { col_width };
             let name2_x: i32 = if is_track { 96 } else { col_width * 2 };
 
-            let value0_x: i32 = if is_track { 51 } else { name0_x + col_content_width };
-            let value1_x: i32 = if is_track { 88 } else { name1_x + col_content_width };
+            let value0_x: i32 = if is_track {
+                51
+            } else {
+                name0_x + col_content_width
+            };
+            let value1_x: i32 = if is_track {
+                88
+            } else {
+                name1_x + col_content_width
+            };
             let value2_x: i32 = DISPLAY_WIDTH;
 
             let row0_y = PARAM_Y_POS as i32;
@@ -716,15 +821,28 @@ mod microgroove {
             ];
             let params = zip(params, zip(param_name_points, param_value_points));
 
-            Rectangle::new(Point::new(0, PARAM_Y_POS as i32), Size::new(DISPLAY_WIDTH as u32, DISPLAY_HEIGHT as u32 - PARAM_Y_POS))
-                .into_styled(background_style())
-                .draw(display)?;
+            Rectangle::new(
+                Point::new(0, PARAM_Y_POS as i32),
+                Size::new(DISPLAY_WIDTH as u32, DISPLAY_HEIGHT as u32 - PARAM_Y_POS),
+            )
+            .into_styled(background_style())
+            .draw(display)?;
 
             for (param, (name_point, value_point)) in params {
-                Text::with_baseline(param.name(), name_point, default_character_style(), Baseline::Top)
-                    .draw(display)?;
-                Text::with_text_style(param.value_str(), value_point, default_character_style(), right_align())
-                    .draw(display)?;
+                Text::with_baseline(
+                    param.name(),
+                    name_point,
+                    default_character_style(),
+                    Baseline::Top,
+                )
+                .draw(display)?;
+                Text::with_text_style(
+                    param.value_str(),
+                    value_point,
+                    default_character_style(),
+                    right_align(),
+                )
+                .draw(display)?;
             }
 
             Ok(())
@@ -790,17 +908,16 @@ mod microgroove {
             Rectangle::new(
                 Point::new(text_margin_left, WARNING_Y_POS),
                 Size::new(warning_width as u32, warning_height as u32),
-
             )
-                .into_styled(fat_outline_style())
-                .draw(display)?;
+            .into_styled(fat_outline_style())
+            .draw(display)?;
             Text::with_text_style(
                 text,
                 Point::new(DISPLAY_CENTER, warning_text_y_pos),
                 big_character_style(),
-                centered()
+                centered(),
             )
-                .draw(display)?;
+            .draw(display)?;
             Ok(())
         }
     }
@@ -839,11 +956,11 @@ mod microgroove {
 
     /// Handle user input (encoder turns, button presses).
     pub mod input {
-        use heapless::Vec;
         use crate::microgroove::{
             encoder::encoder_array::ENCODER_COUNT,
             sequencer::{self, Sequencer},
         };
+        use heapless::Vec;
 
         #[derive(Clone, Copy, Debug)]
         pub enum InputMode {
@@ -854,11 +971,13 @@ mod microgroove {
 
         /// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
         /// `MelodyMachine`, determined by `input_mode`.
-        pub fn map_encoder_input(input_mode: InputMode, sequencer: &mut Sequencer, _encoder_values: Vec<i32, ENCODER_COUNT>) {
+        pub fn map_encoder_input(
+            input_mode: InputMode,
+            sequencer: &mut Sequencer,
+            _encoder_values: Vec<i32, ENCODER_COUNT>,
+        ) {
             let opt_track = sequencer.current_track_mut();
-            opt_track.get_or_insert_with(|| {
-                sequencer::new_track_with_default_machines()
-            });
+            opt_track.get_or_insert_with(|| sequencer::new_track_with_default_machines());
             let track = opt_track.as_mut().unwrap();
             match input_mode {
                 InputMode::Track => {
@@ -875,6 +994,9 @@ mod microgroove {
 
     /// Device initialisation and interfacing.
     pub mod peripherals {
+        use super::encoder::{encoder_array::EncoderArray, positional_encoder::PositionalEncoder};
+        use embedded_midi;
+        use fugit::{HertzU32, RateExtU32};
         use heapless::Vec;
         use rp2040_hal::clocks::PeripheralClock;
         use rp_pico::{
@@ -882,7 +1004,9 @@ mod microgroove {
                 clocks::{self, Clock},
                 gpio::{
                     pin::bank0::{Gpio0, Gpio1, Gpio16, Gpio17, Gpio2, Gpio26, Gpio27},
-                    FunctionI2C, FunctionUart, Interrupt::EdgeLow, Pin, PullUpInput,
+                    FunctionI2C, FunctionUart,
+                    Interrupt::EdgeLow,
+                    Pin, PullUpInput,
                 },
                 pac::{self, I2C1, RESETS, TIMER, UART0},
                 sio::Sio,
@@ -892,13 +1016,7 @@ mod microgroove {
             },
             Pins, XOSC_CRYSTAL_FREQ,
         };
-        use embedded_midi;
         use ssd1306::{mode::BufferedGraphicsMode, prelude::*, I2CDisplayInterface, Ssd1306};
-        use fugit::{RateExtU32, HertzU32};
-        use super::encoder::{
-            encoder_array::EncoderArray,
-            positional_encoder::PositionalEncoder,
-        };
 
         // type alias for UART pins
         type MidiOutUartPin = Pin<Gpio16, FunctionUart>;
@@ -927,10 +1045,24 @@ mod microgroove {
         pub type ButtonMelodyPin = Pin<Gpio2, PullUpInput>;
         type ButtonArray = (ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin);
 
-        pub fn setup(mut pac: pac::Peripherals) -> (MidiIn, MidiOut, Display, ButtonArray, EncoderArray, Monotonic<Alarm0>) {
+        pub fn setup(
+            mut pac: pac::Peripherals,
+        ) -> (
+            MidiIn,
+            MidiOut,
+            Display,
+            ButtonArray,
+            EncoderArray,
+            Monotonic<Alarm0>,
+        ) {
             // setup gpio pins
             let sio = Sio::new(pac.SIO);
-            let pins = Pins::new(pac.IO_BANK0, pac.PADS_BANK0, sio.gpio_bank0, &mut pac.RESETS);
+            let pins = Pins::new(
+                pac.IO_BANK0,
+                pac.PADS_BANK0,
+                sio.gpio_bank0,
+                &mut pac.RESETS,
+            );
 
             // setup clocks
             let mut watchdog = Watchdog::new(pac.WATCHDOG);
@@ -951,7 +1083,7 @@ mod microgroove {
                 pins.gpio16.into_mode::<FunctionUart>(),
                 pins.gpio17.into_mode::<FunctionUart>(),
                 &mut pac.RESETS,
-                clocks.peripheral_clock.freq()
+                clocks.peripheral_clock.freq(),
             );
 
             let display = new_display(
@@ -972,12 +1104,33 @@ mod microgroove {
             let buttons = (button_track_pin, button_rhythm_pin, button_melody_pin);
 
             let mut encoder_vec = Vec::new();
-            encoder_vec.push(PositionalEncoder::new(pins.gpio9.into(), pins.gpio10.into())).expect("failed to create encoder");
-            encoder_vec.push(PositionalEncoder::new(pins.gpio11.into(), pins.gpio12.into())).unwrap();
-            encoder_vec.push(PositionalEncoder::new(pins.gpio13.into(), pins.gpio14.into())).unwrap();
-            encoder_vec.push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into())).unwrap();
-            encoder_vec.push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into())).unwrap();
-            encoder_vec.push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into())).unwrap();
+            encoder_vec
+                .push(PositionalEncoder::new(
+                    pins.gpio9.into(),
+                    pins.gpio10.into(),
+                ))
+                .expect("failed to create encoder");
+            encoder_vec
+                .push(PositionalEncoder::new(
+                    pins.gpio11.into(),
+                    pins.gpio12.into(),
+                ))
+                .unwrap();
+            encoder_vec
+                .push(PositionalEncoder::new(
+                    pins.gpio13.into(),
+                    pins.gpio14.into(),
+                ))
+                .unwrap();
+            encoder_vec
+                .push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into()))
+                .unwrap();
+            encoder_vec
+                .push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into()))
+                .unwrap();
+            encoder_vec
+                .push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into()))
+                .unwrap();
             let encoders = EncoderArray::new(encoder_vec);
 
             (
@@ -997,27 +1150,34 @@ mod microgroove {
             Monotonic::new(timer, monotonic_alarm)
         }
 
-        fn new_midi_uart(uart: UART0, out_pin: MidiOutUartPin, in_pin: MidiInUartPin, resets: &mut RESETS, peripheral_clock_freq: HertzU32) -> (MidiIn, MidiOut) {
+        fn new_midi_uart(
+            uart: UART0,
+            out_pin: MidiOutUartPin,
+            in_pin: MidiInUartPin,
+            resets: &mut RESETS,
+            peripheral_clock_freq: HertzU32,
+        ) -> (MidiIn, MidiOut) {
             let midi_uart_pins = (out_pin, in_pin);
             let uart_config = UartConfig::new(31_250.Hz(), DataBits::Eight, None, StopBits::One);
-            let mut midi_uart =
-                UartPeripheral::new(uart, midi_uart_pins, resets)
-                    .enable(uart_config, peripheral_clock_freq)
-                    .expect("enabling uart for midi should succeed");
+            let mut midi_uart = UartPeripheral::new(uart, midi_uart_pins, resets)
+                .enable(uart_config, peripheral_clock_freq)
+                .expect("enabling uart for midi should succeed");
             midi_uart.enable_rx_interrupt();
             let (midi_reader, midi_writer) = midi_uart.split();
-            (embedded_midi::MidiIn::new(midi_reader), embedded_midi::MidiOut::new(midi_writer))
+            (
+                embedded_midi::MidiIn::new(midi_reader),
+                embedded_midi::MidiOut::new(midi_writer),
+            )
         }
 
-        fn new_display(i2c: I2C1, sda_pin: DisplaySdaPin, scl_pin: DisplaySclPin, resets: &mut RESETS, peripheral_clock: &PeripheralClock) -> Display {
-            let i2c_bus = I2C::i2c1(
-                i2c,
-                sda_pin,
-                scl_pin,
-                1.MHz(),
-                resets,
-                peripheral_clock,
-            );
+        fn new_display(
+            i2c: I2C1,
+            sda_pin: DisplaySdaPin,
+            scl_pin: DisplaySclPin,
+            resets: &mut RESETS,
+            peripheral_clock: &PeripheralClock,
+        ) -> Display {
+            let i2c_bus = I2C::i2c1(i2c, sda_pin, scl_pin, 1.MHz(), resets, peripheral_clock);
 
             let mut display = Ssd1306::new(
                 I2CDisplayInterface::new_alternate_address(i2c_bus),
@@ -1045,14 +1205,19 @@ mod microgroove {
         use defmt_rtt as _;
         use midi_types::MidiMessage;
         use nb::block;
-        use rp_pico::hal::{gpio::Interrupt::EdgeLow, timer::{monotonic::Monotonic, Alarm0}};
+        use rp_pico::hal::{
+            gpio::Interrupt::EdgeLow,
+            timer::{monotonic::Monotonic, Alarm0},
+        };
 
         use crate::microgroove::{
             display,
             encoder::encoder_array::EncoderArray,
             input::{self, InputMode},
             midi,
-            peripherals::{ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin, Display, MidiIn, MidiOut, setup},
+            peripherals::{
+                setup, ButtonMelodyPin, ButtonRhythmPin, ButtonTrackPin, Display, MidiIn, MidiOut,
+            },
             sequencer::{ScheduledMidiMessage, Sequencer},
         };
 
@@ -1105,9 +1270,7 @@ mod microgroove {
             info!("[init] hello world!");
 
             // initialise allocator for dynamic structures (machines, params, etc)
-            unsafe {
-                ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES)
-            }
+            unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES) }
 
             // configure RTIC monotonic as source of timestamps for defmt
             defmt::timestamp!("{=u64:us}", {
@@ -1115,7 +1278,8 @@ mod microgroove {
             });
 
             // create a device wrapper instance and grab some of the peripherals we need
-            let (midi_in, midi_out, mut display, buttons, encoders, monotonic_timer) = setup(ctx.device);
+            let (midi_in, midi_out, mut display, buttons, encoders, monotonic_timer) =
+                setup(ctx.device);
             let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
 
             // show a splash screen for a bit
@@ -1160,41 +1324,39 @@ mod microgroove {
             // read those sweet sweet midi bytes!
             // TODO do we need the block! here?
             if let Ok(message) = block!(ctx.local.midi_in.read()) {
-                ctx.shared.sequencer.lock(|sequencer| {
-                    match message {
-                        MidiMessage::TimingClock => {
-                            trace!("[midi] clock");
-                            let now_us = monotonics::now().duration_since_epoch().to_micros();
-                            let messages = sequencer.advance(now_us);
-                            for message in messages {
-                                match message {
-                                    ScheduledMidiMessage::Immediate(message) => {
-                                        if let Err(_err) = midi_send::spawn(message) {
-                                            error!("could not spawn midi_send for immediate message")
-                                        }
+                ctx.shared.sequencer.lock(|sequencer| match message {
+                    MidiMessage::TimingClock => {
+                        trace!("[midi] clock");
+                        let now_us = monotonics::now().duration_since_epoch().to_micros();
+                        let messages = sequencer.advance(now_us);
+                        for message in messages {
+                            match message {
+                                ScheduledMidiMessage::Immediate(message) => {
+                                    if let Err(_err) = midi_send::spawn(message) {
+                                        error!("could not spawn midi_send for immediate message")
                                     }
-                                    ScheduledMidiMessage::Delayed(message, delay) => {
-                                        if let Err(_err) = midi_send::spawn_after(delay, message) {
-                                            error!("could not spawn midi_send for delayed message")
-                                        }
+                                }
+                                ScheduledMidiMessage::Delayed(message, delay) => {
+                                    if let Err(_err) = midi_send::spawn_after(delay, message) {
+                                        error!("could not spawn midi_send for delayed message")
                                     }
                                 }
                             }
                         }
-                        MidiMessage::Start => {
-                            info!("[midi] start");
-                            sequencer.start_playing();
-                        }
-                        MidiMessage::Stop => {
-                            info!("[midi] stop");
-                            sequencer.stop_playing();
-                        }
-                        MidiMessage::Continue => {
-                            info!("[midi] continue");
-                            sequencer.continue_playing();
-                        }
-                        _ => trace!("[midi] UNKNOWN"),
                     }
+                    MidiMessage::Start => {
+                        info!("[midi] start");
+                        sequencer.start_playing();
+                    }
+                    MidiMessage::Stop => {
+                        info!("[midi] stop");
+                        sequencer.stop_playing();
+                    }
+                    MidiMessage::Continue => {
+                        info!("[midi] continue");
+                        sequencer.continue_playing();
+                    }
+                    _ => trace!("[midi] UNKNOWN"),
                 });
 
                 // pass received message to midi out ("soft thru")
@@ -1265,7 +1427,11 @@ mod microgroove {
         fn read_encoders(ctx: read_encoders::Context) {
             if let Some(_changes) = ctx.local.encoders.update() {
                 (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                    input::map_encoder_input(*input_mode, sequencer, ctx.local.encoders.take_values());
+                    input::map_encoder_input(
+                        *input_mode,
+                        sequencer,
+                        ctx.local.encoders.take_values(),
+                    );
                 })
             }
         }
@@ -1286,7 +1452,8 @@ mod microgroove {
                     *input_mode,
                     sequencer.is_playing(),
                     sequencer.current_track_active_step_num(),
-                ).unwrap();
+                )
+                .unwrap();
             });
         }
 
