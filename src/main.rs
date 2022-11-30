@@ -759,15 +759,12 @@ mod microgroove {
             input_mode: InputMode,
             track: &Track,
         ) -> DisplayResult {
-            match input_mode {
-                InputMode::Track => draw_param_table(display, input_mode, track.params()),
-                InputMode::Rhythm => {
-                    draw_param_table(display, input_mode, track.rhythm_machine.params())
-                }
-                InputMode::Melody => {
-                    draw_param_table(display, input_mode, track.melody_machine.params())
-                }
-            }
+            let params = match input_mode {
+                InputMode::Track => track.params(),
+                InputMode::Rhythm => track.rhythm_machine.params(),
+                InputMode::Melody => track.melody_machine.params(),
+            };
+            draw_param_table(display, input_mode, params)
         }
 
         fn draw_param_table(
