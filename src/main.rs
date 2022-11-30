@@ -9,16 +9,17 @@ mod microgroove {
     pub mod params {
         extern crate alloc;
         use alloc::boxed::Box;
-        use core::fmt::Debug;
+        use core::fmt::{Debug, Write};
         use defmt::debug;
-        use heapless::Vec;
+        use heapless::{String, Vec};
 
         pub trait Param: Debug + Send {
             fn name(&self) -> &str {
                 "DISABLED"
             }
-            fn value_str(&self) -> &str;
-            fn increment(&mut self, n: u32);
+            fn increment(&mut self, n: i8);
+            fn value_str(&self) -> String<10>;
+            fn value_i8(&self) -> Option<i8> { None }
         }
 
         pub trait ParamAdapter {
@@ -28,23 +29,38 @@ mod microgroove {
         pub type ParamList = Vec<Box<dyn Param>, 6>;
 
         #[derive(Debug)]
-        pub struct DummyParam {}
+        pub struct NumberParam {
+            name: String<6>,
+            val: i8,
+            min: i8,
+            max: i8,
+        }
 
-        impl DummyParam {
-            pub fn new() -> DummyParam {
-                DummyParam {}
+        impl NumberParam {
+            pub fn new(name: &str) -> NumberParam {
+                NumberParam { name: name.into(), val: 0, min: 0, max: 127 }
             }
         }
 
-        impl Param for DummyParam {
+        impl Param for NumberParam {
             fn name(&self) -> &str {
-                "DUMMY"
+                self.name.as_str()
             }
-            fn value_str(&self) -> &str {
-                "DUMMY"
+
+            fn value_str(&self) -> String<10> {
+                let mut val_string = String::<10>::new();
+                let _ = write!(val_string, "{}", self.val);
+                val_string
             }
-            fn increment(&mut self, _n: u32) {
-                debug!("DummyParam::increment");
+
+            fn increment(&mut self, n: i8) {
+                self.val += n;
+                if self.val < self.min { self.val = self.min; }
+                else if self.val > self.max { self.val = self.max; }
+            }
+
+            fn value_i8(&self) -> Option<i8> {
+                Some(self.val)
             }
         }
     }
@@ -173,8 +189,21 @@ mod microgroove {
                 &mut self.params
             }
 
+            pub fn apply_params(&mut self) {
+                /*
+                0 -> rhythm_machine
+                1 -> length
+                2 -> track number -- ignore, handled by Sequencer::set_current_track
+                3 -> melody_machine
+                4 -> speed
+                5 -> midi_channel
+                */
+                panic!("TODO");
+            }
+
             fn generate_sequence() -> Sequence {
                 Self::initial_sequence()
+                // TODO pipe sequence through machines
             }
 
             fn initial_sequence() -> Sequence {
@@ -293,6 +322,10 @@ mod microgroove {
                     .map(|track| track.step_num(self.tick))
             }
 
+            pub fn set_current_track(&mut self, new_track_num: u8) {
+                self.current_track = new_track_num as usize;
+            }
+
             pub fn advance(
                 &mut self,
                 now_us: u64,
@@ -370,7 +403,7 @@ mod microgroove {
         pub mod unitmachine {
             extern crate alloc;
             use crate::microgroove::{
-                params::{DummyParam, ParamList},
+                params::{NumberParam, ParamList},
                 sequence::{Machine, Sequence, SequenceProcessor},
             };
             use alloc::boxed::Box;
@@ -400,7 +433,7 @@ mod microgroove {
                 pub fn new() -> UnitMachine {
                     let sequence_processor = UnitProcessor::new();
                     let mut params = ParamList::new();
-                    params.push(Box::new(DummyParam::new())).unwrap();
+                    params.push(Box::new(NumberParam::new("NUM"))).unwrap();
                     UnitMachine {
                         sequence_processor,
                         params,
@@ -439,7 +472,7 @@ mod microgroove {
 
             pub struct PositionalEncoder {
                 encoder: Rotary<DynPin, DynPin>,
-                value: i32,
+                value: i8,
             }
 
             impl PositionalEncoder {
@@ -455,7 +488,7 @@ mod microgroove {
                 /// Check the encoder state for changes. This should be called frequently, e.g.
                 /// every 1ms. Returns a `Some` containing the encoder value if there have been
                 /// changes, `None` otherwise.
-                pub fn update(&mut self) -> Option<i32> {
+                pub fn update(&mut self) -> Option<i8> {
                     match self.encoder.update() {
                         Ok(Direction::Clockwise) => {
                             self.value += 1;
@@ -476,7 +509,7 @@ mod microgroove {
                 /// Get the value of the encoder, and then reset that to zero. This has the
                 /// semantics of "I would like to know your value, which I will use to update my
                 /// state, so you can then discard it."
-                pub fn take_value(&mut self) -> i32 {
+                pub fn take_value(&mut self) -> i8 {
                     let val = self.value;
                     self.value = 0;
                     val
@@ -519,7 +552,7 @@ mod microgroove {
                     }
                 }
 
-                pub fn take_values(&mut self) -> Vec<i32, ENCODER_COUNT> {
+                pub fn take_values(&mut self) -> Vec<i8, ENCODER_COUNT> {
                     self.encoders
                         .iter_mut()
                         .map(|enc| enc.take_value())
@@ -825,7 +858,7 @@ mod microgroove {
                 )
                 .draw(display)?;
                 Text::with_text_style(
-                    param.value_str(),
+                    param.value_str().as_str(),
                     value_point,
                     default_character_style(),
                     right_align(),
@@ -949,6 +982,7 @@ mod microgroove {
             sequencer::{self, Sequencer},
         };
         use heapless::Vec;
+        use core::iter::zip;
 
         #[derive(Clone, Copy, Debug)]
         pub enum InputMode {
@@ -962,20 +996,29 @@ mod microgroove {
         pub fn map_encoder_input(
             input_mode: InputMode,
             sequencer: &mut Sequencer,
-            _encoder_values: Vec<i32, ENCODER_COUNT>,
+            encoder_values: Vec<i8, ENCODER_COUNT>,
         ) {
             let opt_track = sequencer.current_track_mut();
             opt_track.get_or_insert_with(|| sequencer::new_track_with_default_machines());
             let track = opt_track.as_mut().unwrap();
-            match input_mode {
-                InputMode::Track => {
-                    let _params = track.params_mut();
-                    // TODO update params
-                    // TODO write param data back to track member variables
-                }
-                InputMode::Rhythm | InputMode::Melody => {
-                    // TODO update params
-                }
+            let params_mut = match input_mode {
+                InputMode::Track => track.params_mut(),
+                InputMode::Rhythm => track.rhythm_machine.params_mut(),
+                InputMode::Melody => track.melody_machine.params_mut(),
+            };
+
+            // update params
+            let params_and_values = zip(params_mut, encoder_values);
+            for (param, value) in params_and_values {
+                param.increment(value);
+            }
+
+            // write param data back to track member variables and set the current track in the
+            // sequencer
+            if let InputMode::Track = input_mode {
+                let track_num = (track.params()[2].value_i8().unwrap() - 1) as u8;
+                track.apply_params();
+                sequencer.set_current_track(track_num);
             }
         }
     }
