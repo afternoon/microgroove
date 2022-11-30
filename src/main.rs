@@ -9,7 +9,7 @@ mod microgroove {
     pub mod params {
         extern crate alloc;
         use alloc::boxed::Box;
-        use core::fmt::{self, Debug, Display, Formatter};
+        use core::fmt::Debug;
         use defmt::debug;
         use heapless::Vec;
 
@@ -56,7 +56,7 @@ mod microgroove {
         extern crate alloc;
         use alloc::boxed::Box;
         use core::cmp::Ordering;
-        use core::fmt::{Debug, Display};
+        use core::fmt::Debug;
         use heapless::Vec;
         use midi_types::{Channel, Note, Value14, Value7};
 
@@ -111,13 +111,7 @@ mod microgroove {
             fn cmp(&self, other: &Self) -> Ordering {
                 let self_note_num: u8 = self.note.into();
                 let other_note_num: u8 = other.note.into();
-                if self_note_num == other_note_num {
-                    Ordering::Equal
-                } else if self_note_num < other_note_num {
-                    Ordering::Less
-                } else {
-                    Ordering::Greater
-                }
+                self_note_num.cmp(&other_note_num)
             }
         }
 
@@ -199,7 +193,6 @@ mod microgroove {
                 if !self.should_play_on_tick(tick) {
                     return None;
                 }
-
                 self.steps
                     .get(self.step_num(tick) as usize)
                     .unwrap()
@@ -312,7 +305,6 @@ mod microgroove {
                         if let Some(step) = track.step_at_tick(self.tick) {
                             let note_on_message =
                                 MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
-
                             output_messages
                                 .push(ScheduledMidiMessage::Immediate(note_on_message))
                                 .unwrap();
@@ -334,7 +326,6 @@ mod microgroove {
                                 * step.length_step_cents as u64)
                                 / 100)
                                 .micros();
-
                             output_messages
                                 .push(ScheduledMidiMessage::Delayed(
                                     note_off_message,
@@ -983,7 +974,7 @@ mod microgroove {
                     // TODO write param data back to track member variables
                 }
                 InputMode::Rhythm | InputMode::Melody => {
-                    panic!("TODO");
+                    // TODO update params
                 }
             }
         }
