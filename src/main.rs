@@ -10,16 +10,17 @@ mod microgroove {
         extern crate alloc;
         use alloc::boxed::Box;
         use core::fmt::{Debug, Write};
-        use defmt::debug;
         use heapless::{String, Vec};
 
-        pub trait Param: Debug + Send {
+        pub trait Param: Clone + Debug + Send {
             fn name(&self) -> &str {
                 "DISABLED"
             }
             fn increment(&mut self, n: i8);
             fn value_str(&self) -> String<10>;
-            fn value_i8(&self) -> Option<i8> { None }
+            fn value_i8(&self) -> Option<i8> {
+                None
+            }
         }
 
         pub trait ParamAdapter {
@@ -28,7 +29,7 @@ mod microgroove {
 
         pub type ParamList = Vec<Box<dyn Param>, 6>;
 
-        #[derive(Debug)]
+        #[derive(Clone, Debug)]
         pub struct NumberParam {
             name: String<6>,
             val: i8,
@@ -37,8 +38,8 @@ mod microgroove {
         }
 
         impl NumberParam {
-            pub fn new(name: &str) -> NumberParam {
-                NumberParam { name: name.into(), val: 0, min: 0, max: 127 }
+            pub fn new(name: &str, min: i8, max: i8, initial: i8) -> NumberParam {
+                NumberParam { name: name.into(), val: initial, min, max }
             }
         }
 
@@ -76,7 +77,19 @@ mod microgroove {
         use heapless::Vec;
         use midi_types::{Channel, Note, Value14, Value7};
 
-        use crate::microgroove::params::ParamList;
+        use crate::microgroove::params::{NumberParam, ParamList};
+
+        const TRACK_MIN_LENGTH: i8 = 1; // because live performance effect of repeating a single step
+        const TRACK_MAX_LENGTH: i8 = 32;
+        const TRACK_DEFAULT_LENGTH: i8 = 8; // because techno
+
+        const TRACK_MIN_NUM: i8 = 1;
+        const TRACK_MAX_NUM: i8 = 16;
+        const TRACK_DEFAULT_NUM: i8 = 1;
+
+        const MIDI_MIN_CHANNEL: i8 = 1;
+        const MIDI_MAX_CHANNEL: i8 = 16;
+        const MIDI_DEFAULT_CHANNEL: i8 = 1;
 
         /// Represent a step in a musical sequence.
         #[derive(Clone, Debug)]
@@ -141,7 +154,7 @@ mod microgroove {
             Whole = 96,
         }
 
-        pub type Sequence = Vec<Option<Step>, 32>;
+        pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
 
         pub trait SequenceProcessor {
             fn apply(&self, sequence: Sequence) -> Sequence;
@@ -170,6 +183,14 @@ mod microgroove {
                 rhythm_machine: impl Machine + 'static,
                 melody_machine: impl Machine + 'static,
             ) -> Track {
+                let params = Vec::from_slice(&[
+                    RhythmMachineParam::new(),
+                    NumberParam::new("LEN", TRACK_MIN_LENGTH, TRACK_MAX_LENGTH, TRACK_DEFAULT_LENGTH),
+                    NumberParam::new("TRACK", TRACK_MIN_NUM, TRACK_COUNT, TRACK_DEFAULT_NUM),
+                    MelodyMachineParam::new(),
+                    TrackSpeedParam::new(),
+                    NumberParam::new("CHAN", MIDI_MIN_CHANNEL, MIDI_MAX_CHANNEL, MIDI_DEFAULT_CHANNEL),
+                ]).unwrap();
                 Track {
                     time_division: TimeDivision::Sixteenth,
                     length: 16,
@@ -177,7 +198,7 @@ mod microgroove {
                     steps: Track::generate_sequence(),
                     rhythm_machine: Box::new(rhythm_machine),
                     melody_machine: Box::new(melody_machine),
-                    params: Vec::new(),
+                    params,
                 }
             }
 
