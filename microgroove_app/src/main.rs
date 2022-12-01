@@ -119,7 +119,7 @@ pub mod display {
         text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
     };
 
-    use microgroove_sequencer::{core::Track, params::ParamList};
+    use microgroove_sequencer::{Track, params::ParamList};
     use crate::{input::InputMode, peripherals::Display};
 
     type DisplayResult = Result<(), DisplayError>;
