@@ -1,10 +1,28 @@
+extern crate alloc;
+
+use alloc::boxed::Box;
+use core::fmt::Debug;
+
+use crate::{
+    SequenceProcessor,
+    params::ParamList,
+};
+
+pub trait Machine: Debug + Send {
+    fn name(&self) -> &str;
+    fn sequence_processor(&self) -> Box<dyn SequenceProcessor>;
+    fn params(&self) -> &ParamList;
+    fn params_mut(&mut self) -> &mut ParamList;
+}
+
 pub mod unitmachine {
     extern crate alloc;
 
     use crate::{
-        Machine, Sequence, SequenceProcessor,
+        Sequence, SequenceProcessor,
         params::{NumberParam, ParamList},
     };
+    use super::Machine;
     use alloc::boxed::Box;
 
     #[derive(Clone, Copy, Debug)]

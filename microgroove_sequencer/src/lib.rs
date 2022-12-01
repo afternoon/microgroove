@@ -1,18 +1,18 @@
 #![cfg_attr(not(test), no_std)]
 
-extern crate alloc;
-
 pub mod machines;
 pub mod params;
 pub mod sequencer;
 
+extern crate alloc;
+
 use alloc::boxed::Box;
 use core::cmp::Ordering;
-use core::fmt::Debug;
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
 use params::{NumberParam, ParamList};
+use machines::Machine;
 
 pub const TRACK_COUNT: usize = 16;
 
@@ -94,13 +94,6 @@ pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
 
 pub trait SequenceProcessor {
     fn apply(&self, sequence: Sequence) -> Sequence;
-}
-
-pub trait Machine: Debug + Send {
-    fn name(&self) -> &str;
-    fn sequence_processor(&self) -> Box<dyn SequenceProcessor>;
-    fn params(&self) -> &ParamList;
-    fn params_mut(&mut self) -> &mut ParamList;
 }
 
 #[derive(Debug)]
