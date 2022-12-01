@@ -1,0 +1,14 @@
+[package]
+name = "microgroove_sequencer"
+version = "0.1.0"
+authors = ["afternoon <ben@ben2.com>"]
+edition = "2021"
+license = "MIT"
+homepage = "https://github.com/afternoon/microgroove"
+repository = "https://github.com/afternoon/microgroove"
+
+[dependencies]
+embedded-midi = "0.1.2"
+fugit = "0.3.6"
+heapless = "0.7.16"
+midi-types = "0.1.2"
