@@ -40,7 +40,7 @@ const SEQUENCE_UNDERLINE_Y_POS: i32 = 44;
 
 const PARAM_Y_POS: u32 = 51;
 
-fn map_to_range(x: u32, in_min: u32, in_max: u32, out_min: u32, out_max: u32) -> u32 {
+fn map_to_range(x: i32, in_min: i32, in_max: i32, out_min: i32, out_max: i32) -> i32 {
     (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min
 }
 
@@ -181,11 +181,11 @@ fn draw_sequence(
             let x2 = x + step_width as i32;
             let note_num: u8 = step.note.into();
             let y = map_to_range(
-                note_num as u32,
-                note_min as u32,
-                note_max as u32,
-                note_y_pos_min,
-                note_y_pos_max,
+                note_num as i32,
+                note_min as i32,
+                note_max as i32,
+                note_y_pos_min as i32,
+                note_y_pos_max as i32,
             );
 
             // draw step
