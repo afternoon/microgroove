@@ -266,9 +266,10 @@ mod app {
             let track = sequencer.current_track();
             display::render_perform_view(
                 ctx.local.display,
-                track,
                 *input_mode,
                 sequencer.is_playing(),
+                track,
+                sequencer.current_track_num(),
                 sequencer.current_track_active_step_num(),
             )
             .unwrap();

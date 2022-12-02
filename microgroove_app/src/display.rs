@@ -1,6 +1,9 @@
 /// Rendering UI graphics to the display.
-use core::iter::zip;
-
+use core::{
+    iter::zip,
+    str::FromStr,
+    fmt::Write,
+};
 use display_interface::DisplayError;
 use embedded_graphics::{
     mono_font::{
@@ -13,6 +16,7 @@ use embedded_graphics::{
     text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
 };
 
+use heapless::String;
 use microgroove_sequencer::{Track, params::ParamList};
 use crate::{input::InputMode, peripherals::Display};
 
@@ -67,12 +71,13 @@ pub fn render_splash_screen_view(display: &mut Display) -> DisplayResult {
 
 pub fn render_perform_view(
     display: &mut Display,
-    track: &Option<Track>,
     input_mode: InputMode,
     playing: bool,
+    track: &Option<Track>,
+    track_num: usize,
     active_step_num: Option<u32>,
 ) -> DisplayResult {
-    draw_header(display, playing, input_mode)?;
+    draw_header(display, input_mode, playing, track_num)?;
     if let Some(track) = track {
         draw_sequence(display, track, active_step_num.unwrap())?;
         draw_params(display, input_mode, track)?;
@@ -85,13 +90,16 @@ pub fn render_perform_view(
 
 fn draw_header(
     display: &mut Display,
-    playing: bool,
     input_mode: InputMode,
+    playing: bool,
+    track_num: usize,
 ) -> DisplayResult {
     Rectangle::new(Point::zero(), Size::new(HEADER_WIDTH, HEADER_HEIGHT))
         .into_styled(background_style())
         .draw(display)?;
-    Text::with_text_style("TRK", Point::zero(), default_character_style(), centered())
+    let mut track_num_str: String<5> = String::from_str("TRK").unwrap();
+    write!(track_num_str, "{:02}", track_num);
+    Text::with_baseline(track_num_str.as_str(), Point::zero(), default_character_style(), Baseline::Top)
         .draw(display)?;
     if playing {
         Text::with_baseline(

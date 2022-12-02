@@ -26,7 +26,7 @@ pub fn new_track_with_default_machines() -> Track {
 
 pub struct Sequencer {
     pub tracks: Vec<Option<Track>, TRACK_COUNT>,
-    current_track: usize,
+    current_track_num: usize,
     playing: bool,
     tick: u32,
     last_tick_instant_us: Option<u64>,
@@ -47,7 +47,7 @@ impl Sequencer {
         }
         Sequencer {
             tracks,
-            current_track: 0,
+            current_track_num: 0,
             playing: false,
             tick: 0,
             last_tick_instant_us: None,
@@ -72,12 +72,16 @@ impl Sequencer {
         self.playing = true
     }
 
+    pub fn current_track_num(&self) -> usize {
+        self.current_track_num + 1
+    }
+
     pub fn current_track(&self) -> &Option<Track> {
-        &self.tracks.get(self.current_track).unwrap()
+        &self.tracks.get(self.current_track_num).unwrap()
     }
 
     pub fn current_track_mut(&mut self) -> &mut Option<Track> {
-        self.tracks.get_mut(self.current_track).unwrap()
+        self.tracks.get_mut(self.current_track_num).unwrap()
     }
 
     pub fn current_track_active_step_num(&self) -> Option<u32> {
@@ -87,7 +91,7 @@ impl Sequencer {
     }
 
     pub fn set_current_track(&mut self, new_track_num: u8) {
-        self.current_track = new_track_num as usize;
+        self.current_track_num = new_track_num as usize;
     }
 
     pub fn advance(
