@@ -1,4 +1,4 @@
-// #![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_std)]
 
 pub mod machines;
 pub mod params;
@@ -176,10 +176,12 @@ impl Track {
     }
 
     pub fn apply_params(&mut self) {
-        self.groove_machine = Box::new(machine_from_id(self.params[0].value_str().as_str()));
+        self.groove_machine =
+            Box::new(machine_from_id(self.params[0].value_str().as_str()).unwrap());
         self.length = self.params[1].value_i8().unwrap() as u8;
         // params[2], track number, is intentionally ignored, its handled by Sequencer::set_current_track
-        self.melody_machine = Box::new(machine_from_id(self.params[3].value_str().as_str()));
+        self.melody_machine =
+            Box::new(machine_from_id(self.params[3].value_str().as_str()).unwrap());
         self.time_division = time_division_from_id(self.params[4].value_str().as_str());
         self.midi_channel = (self.params[5].value_i8().unwrap() as u8).into();
     }

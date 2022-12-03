@@ -2,6 +2,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::fmt::Debug;
+use heapless::String;
 
 use crate::{params::ParamList, SequenceProcessor};
 
@@ -16,7 +17,7 @@ pub const GROOVE_MACHINE_IDS: &str = "UNIT";
 pub const MELODY_MACHINE_IDS: &str = "UNIT";
 
 pub fn machine_from_id(id: &str) -> Option<impl Machine> {
-    let mut id_upcase = String::from(id);
+    let mut id_upcase = String::<6>::from(id);
     id_upcase.make_ascii_uppercase();
     match id_upcase.as_str() {
         "UNIT" => Some(unitmachine::UnitMachine::new()),
