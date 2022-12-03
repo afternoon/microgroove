@@ -4,7 +4,7 @@ use embedded_midi::MidiMessage;
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};
 
-use crate::{Track, TRACK_COUNT, machines::unitmachine::UnitMachine};
+use crate::{machines::unitmachine::UnitMachine, Track, TRACK_COUNT};
 
 // TODO will cause issues if polyphony
 const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
@@ -94,10 +94,7 @@ impl Sequencer {
         self.current_track_num = new_track_num as usize;
     }
 
-    pub fn advance(
-        &mut self,
-        now_us: u64,
-    ) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
+    pub fn advance(&mut self, now_us: u64) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
         let mut output_messages = Vec::new();
         let tick_duration = self.average_tick_duration(now_us);
 

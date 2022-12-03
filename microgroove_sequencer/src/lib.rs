@@ -1,4 +1,4 @@
-#![cfg_attr(not(test), no_std)]
+// #![cfg_attr(not(test), no_std)]
 
 pub mod machines;
 pub mod params;
@@ -11,8 +11,8 @@ use core::cmp::Ordering;
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
+use machines::{machine_from_id, Machine, GROOVE_MACHINE_IDS, MELODY_MACHINE_IDS};
 use params::{EnumParam, NumberParam, ParamList};
-use machines::{Machine, machine_from_id};
 
 pub const TRACK_COUNT: usize = 16;
 
@@ -123,12 +123,39 @@ impl Track {
         melody_machine: impl Machine + 'static,
     ) -> Track {
         let mut params: ParamList = Vec::new();
-        params.push(Box::new(EnumParam::new("GROOVE", "UNIT"))).unwrap();
-        params.push(Box::new(NumberParam::new("LEN", TRACK_MIN_LENGTH as i8, TRACK_MAX_LENGTH as i8, TRACK_DEFAULT_LENGTH as i8))).unwrap();
-        params.push(Box::new(NumberParam::new("TRACK", TRACK_MIN_NUM, TRACK_COUNT as i8, TRACK_DEFAULT_NUM))).unwrap();
-        params.push(Box::new(EnumParam::new("MELODY", "UNIT"))).unwrap();
-        params.push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1"))).unwrap();
-        params.push(Box::new(NumberParam::new("CHAN", MIDI_MIN_CHANNEL, MIDI_MAX_CHANNEL, MIDI_DEFAULT_CHANNEL))).unwrap();
+        params
+            .push(Box::new(EnumParam::new("GROOVE", GROOVE_MACHINE_IDS)))
+            .unwrap();
+        params
+            .push(Box::new(NumberParam::new(
+                "LEN",
+                TRACK_MIN_LENGTH as i8,
+                TRACK_MAX_LENGTH as i8,
+                TRACK_DEFAULT_LENGTH as i8,
+            )))
+            .unwrap();
+        params
+            .push(Box::new(NumberParam::new(
+                "TRACK",
+                TRACK_MIN_NUM,
+                TRACK_COUNT as i8,
+                TRACK_DEFAULT_NUM,
+            )))
+            .unwrap();
+        params
+            .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS)))
+            .unwrap();
+        params
+            .push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1")))
+            .unwrap();
+        params
+            .push(Box::new(NumberParam::new(
+                "CHAN",
+                MIDI_MIN_CHANNEL,
+                MIDI_MAX_CHANNEL,
+                MIDI_DEFAULT_CHANNEL,
+            )))
+            .unwrap();
         Track {
             time_division: TimeDivision::Sixteenth,
             length: 16,
@@ -191,10 +218,7 @@ mod test {
 
     #[test]
     fn steps_are_correctly_ordered() {
-        let (s1, s2) = (
-            Step::new(60),
-            Step::new(61)
-        );
+        let (s1, s2) = (Step::new(60), Step::new(61));
         assert!(s1 < s2);
     }
 }

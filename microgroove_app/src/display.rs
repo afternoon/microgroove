@@ -1,9 +1,5 @@
 /// Rendering UI graphics to the display.
-use core::{
-    iter::zip,
-    str::FromStr,
-    fmt::Write,
-};
+use core::{fmt::Write, iter::zip, str::FromStr};
 use display_interface::DisplayError;
 use embedded_graphics::{
     mono_font::{
@@ -16,9 +12,9 @@ use embedded_graphics::{
     text::{Alignment, Baseline, Text, TextStyle, TextStyleBuilder},
 };
 
-use heapless::String;
-use microgroove_sequencer::{Track, params::ParamList};
 use crate::{input::InputMode, peripherals::Display};
+use heapless::String;
+use microgroove_sequencer::{params::ParamList, Track};
 
 type DisplayResult = Result<(), DisplayError>;
 
@@ -100,8 +96,13 @@ fn draw_header(
         .draw(display)?;
     let mut track_num_str: String<5> = String::from_str("TRK").unwrap();
     write!(track_num_str, "{:02}", track_num).unwrap();
-    Text::with_baseline(track_num_str.as_str(), Point::zero(), default_character_style(), Baseline::Top)
-        .draw(display)?;
+    Text::with_baseline(
+        track_num_str.as_str(),
+        Point::zero(),
+        default_character_style(),
+        Baseline::Top,
+    )
+    .draw(display)?;
     if playing {
         Text::with_baseline(
             ">",
@@ -143,11 +144,7 @@ fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
     warning(display, "TRACK DISABLED")
 }
 
-fn draw_sequence(
-    display: &mut Display,
-    track: &Track,
-    active_step_num: u32,
-) -> DisplayResult {
+fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> DisplayResult {
     let step_width: u32 = if track.length < 17 { 6 } else { 3 };
     let step_height: u32 = step_width;
     let display_sequence_margin_left =
@@ -185,8 +182,7 @@ fn draw_sequence(
 
     for step in &track.steps {
         if let Some(step) = step {
-            let x =
-                display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
+            let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
             let x2 = x + step_width as i32;
             let note_num: u8 = step.note.into();
             let y = map_to_range(
@@ -221,11 +217,7 @@ fn draw_sequence(
     Ok(())
 }
 
-fn draw_params(
-    display: &mut Display,
-    input_mode: InputMode,
-    track: &Track,
-) -> DisplayResult {
+fn draw_params(display: &mut Display, input_mode: InputMode, track: &Track) -> DisplayResult {
     let params = match input_mode {
         InputMode::Track => track.params(),
         InputMode::Groove => track.groove_machine.params(),

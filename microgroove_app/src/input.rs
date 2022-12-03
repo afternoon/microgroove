@@ -1,9 +1,9 @@
-/// Handle user input (encoder turns, button presses).
-use microgroove_sequencer::sequencer::{self, Sequencer};
 use crate::encoder::encoder_array::ENCODER_COUNT;
 use core::iter::zip;
 use defmt::debug;
 use heapless::Vec;
+/// Handle user input (encoder turns, button presses).
+use microgroove_sequencer::sequencer::{self, Sequencer};
 
 #[derive(Clone, Copy, Debug)]
 pub enum InputMode {

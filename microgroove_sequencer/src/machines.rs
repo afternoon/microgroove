@@ -3,10 +3,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 use core::fmt::Debug;
 
-use crate::{
-    SequenceProcessor,
-    params::ParamList,
-};
+use crate::{params::ParamList, SequenceProcessor};
 
 pub trait Machine: Debug + Send {
     fn name(&self) -> &str;
@@ -15,18 +12,26 @@ pub trait Machine: Debug + Send {
     fn params_mut(&mut self) -> &mut ParamList;
 }
 
-pub fn machine_from_id(_id: &str) -> impl Machine {
-    unitmachine::UnitMachine::new()
+pub const GROOVE_MACHINE_IDS: &str = "UNIT";
+pub const MELODY_MACHINE_IDS: &str = "UNIT";
+
+pub fn machine_from_id(id: &str) -> Option<impl Machine> {
+    let mut id_upcase = String::from(id);
+    id_upcase.make_ascii_uppercase();
+    match id_upcase.as_str() {
+        "UNIT" => Some(unitmachine::UnitMachine::new()),
+        _ => None,
+    }
 }
 
 pub mod unitmachine {
     extern crate alloc;
 
-    use crate::{
-        Sequence, SequenceProcessor,
-        params::{NumberParam, ParamList},
-    };
     use super::Machine;
+    use crate::{
+        params::{NumberParam, ParamList},
+        Sequence, SequenceProcessor,
+    };
     use alloc::boxed::Box;
 
     #[derive(Clone, Copy, Debug)]
@@ -54,7 +59,9 @@ pub mod unitmachine {
         pub fn new() -> UnitMachine {
             let sequence_processor = UnitProcessor::new();
             let mut params = ParamList::new();
-            params.push(Box::new(NumberParam::new("NUM", 1, 16, 1))).unwrap();
+            params
+                .push(Box::new(NumberParam::new("NUM", 1, 16, 1)))
+                .unwrap();
             UnitMachine {
                 sequence_processor,
                 params,

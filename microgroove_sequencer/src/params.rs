@@ -5,6 +5,11 @@ use alloc::boxed::Box;
 use core::fmt::{Debug, Write};
 use heapless::{String, Vec};
 
+fn wrapping_add(a: i32, b: i32, max: i32) -> i32 {
+    let size = max + 1;
+    ((a + b % size) + size) % size
+}
+
 pub trait Param: Debug + Send {
     fn name(&self) -> &str {
         "DISABLED"
@@ -32,7 +37,12 @@ pub struct NumberParam {
 
 impl NumberParam {
     pub fn new(name: &str, min: i8, max: i8, initial: i8) -> NumberParam {
-        NumberParam { name: name.into(), val: initial, min, max }
+        NumberParam {
+            name: name.into(),
+            val: initial,
+            min,
+            max,
+        }
     }
 }
 
@@ -49,8 +59,11 @@ impl Param for NumberParam {
 
     fn increment(&mut self, n: i8) {
         self.val += n;
-        if self.val < self.min { self.val = self.min; }
-        else if self.val > self.max { self.val = self.max; }
+        if self.val < self.min {
+            self.val = self.min;
+        } else if self.val > self.max {
+            self.val = self.max;
+        }
     }
 
     fn value_i8(&self) -> Option<i8> {
@@ -78,7 +91,11 @@ impl EnumParam {
         for option_str in options_space_separated.split_ascii_whitespace() {
             options.push(option_str.into()).unwrap();
         }
-        EnumParam { name: name.into(), options, index: 0 }
+        EnumParam {
+            name: name.into(),
+            options,
+            index: 0,
+        }
     }
 }
 
@@ -94,21 +111,8 @@ impl Param for EnumParam {
     /// Scroll through the available options. Incrementing wraps around once the user scrolls past
     /// the first and last options.
     fn increment(&mut self, n: i8) {
-        if n < 0 {
-            let n_abs = n.abs() as usize;
-            if n_abs > self.index {
-                let delta = n_abs - self.index;
-                self.index = self.options.len() - delta;
-            } else {
-                self.index -= n_abs;
-            }
-        }
-        else {
-            self.index += n as usize;
-            if self.index >= self.options.len() {
-                self.index = self.options.len() - self.index;
-            }
-        }
+        self.index =
+            wrapping_add(self.index as i32, n as i32, (self.options.len() - 1) as i32) as usize
     }
 }
 
@@ -117,7 +121,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn number_param_should_increment() {
+    fn number_param_should_calculate_increments_correctly() {
         let mut param = NumberParam::new("TEST", 1, 16, 1);
         assert_eq!(1, param.value_i8().unwrap());
         param.increment(1);
@@ -133,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn enum_param_should_increment() {
+    fn enum_param_should_calculate_small_increments_correctly() {
         let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32");
         assert_eq!("1", param.value_str());
         param.increment(1);
@@ -144,9 +148,15 @@ mod tests {
         assert_eq!("1/32", param.value_str());
         param.increment(1);
         assert_eq!("1", param.value_str());
+    }
+
+    #[test]
+    fn enum_param_should_calculate_large_increments_correctly() {
+        let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32");
+        assert_eq!("1", param.value_str());
         param.increment(21);
         assert_eq!("1/4", param.value_str());
-        // param.increment(-21);
-        // assert_eq!("1", param.value_str());
+        param.increment(-21);
+        assert_eq!("1", param.value_str());
     }
 }

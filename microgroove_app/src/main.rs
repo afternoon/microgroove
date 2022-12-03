@@ -29,16 +29,16 @@ mod app {
         timer::{monotonic::Monotonic, Alarm0},
     };
 
-    use microgroove_sequencer::sequencer::{ScheduledMidiMessage, Sequencer};
     use crate::{
         display,
         encoder::encoder_array::EncoderArray,
         input::{self, InputMode},
         midi,
         peripherals::{
-            setup, ButtonMelodyPin, ButtonGroovePin, ButtonTrackPin, Display, MidiIn, MidiOut,
+            setup, ButtonGroovePin, ButtonMelodyPin, ButtonTrackPin, Display, MidiIn, MidiOut,
         },
     };
+    use microgroove_sequencer::sequencer::{ScheduledMidiMessage, Sequencer};
 
     #[global_allocator]
     static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -256,11 +256,7 @@ mod app {
     fn read_encoders(ctx: read_encoders::Context) {
         if let Some(_changes) = ctx.local.encoders.update() {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                input::map_encoder_input(
-                    *input_mode,
-                    sequencer,
-                    ctx.local.encoders.take_values(),
-                );
+                input::map_encoder_input(*input_mode, sequencer, ctx.local.encoders.take_values());
             })
         }
 
