@@ -57,3 +57,96 @@ impl Param for NumberParam {
         Some(self.val)
     }
 }
+
+pub type Options = Vec<String<4>, 20>;
+
+#[derive(Clone, Debug)]
+pub struct EnumParam {
+    name: String<6>,
+    options: Options,
+    index: usize,
+}
+
+/// Param for selecting from a set of available choices. Options are defined as a `&str` of
+/// whitespace-separated tokens, e.g. `"1st 2nd 3rd 4th"`. Options are represented as `String<6>` so
+/// that many different types of choice can be represented easily, and to avoid coupling the param
+/// implementation to the underlying data model. You should be careful to keep the list of options
+/// in sync with whatever values it relates to.
+impl EnumParam {
+    pub fn new(name: &str, options_space_separated: &str) -> EnumParam {
+        let mut options = Options::new();
+        for option_str in options_space_separated.split_ascii_whitespace() {
+            options.push(option_str.into()).unwrap();
+        }
+        EnumParam { name: name.into(), options, index: 0 }
+    }
+}
+
+impl Param for EnumParam {
+    fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    fn value_str(&self) -> String<10> {
+        self.options[self.index].as_str().into()
+    }
+
+    /// Scroll through the available options. Incrementing wraps around once the user scrolls past
+    /// the first and last options.
+    fn increment(&mut self, n: i8) {
+        if n < 0 {
+            let n_abs = n.abs() as usize;
+            if n_abs > self.index {
+                let delta = n_abs - self.index;
+                self.index = self.options.len() - delta;
+            } else {
+                self.index -= n_abs;
+            }
+        }
+        else {
+            self.index += n as usize;
+            if self.index >= self.options.len() {
+                self.index = self.options.len() - self.index;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn number_param_should_increment() {
+        let mut param = NumberParam::new("TEST", 1, 16, 1);
+        assert_eq!(1, param.value_i8().unwrap());
+        param.increment(1);
+        assert_eq!(2, param.value_i8().unwrap());
+        param.increment(15);
+        assert_eq!(16, param.value_i8().unwrap());
+        param.increment(1);
+        assert_eq!(16, param.value_i8().unwrap());
+        param.increment(-16);
+        assert_eq!(1, param.value_i8().unwrap());
+        param.increment(-1);
+        assert_eq!(1, param.value_i8().unwrap());
+    }
+
+    #[test]
+    fn enum_param_should_increment() {
+        let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32");
+        assert_eq!("1", param.value_str());
+        param.increment(1);
+        assert_eq!("1/4", param.value_str());
+        param.increment(-1);
+        assert_eq!("1", param.value_str());
+        param.increment(-1);
+        assert_eq!("1/32", param.value_str());
+        param.increment(1);
+        assert_eq!("1", param.value_str());
+        param.increment(21);
+        assert_eq!("1/4", param.value_str());
+        // param.increment(-21);
+        // assert_eq!("1", param.value_str());
+    }
+}

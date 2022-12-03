@@ -21,6 +21,7 @@ mod app {
     use alloc_cortex_m::CortexMHeap;
     use defmt::{self, error, info, trace};
     use defmt_rtt as _;
+    use fugit::MicrosDurationU64;
     use midi_types::MidiMessage;
     use nb::block;
     use rp_pico::hal::{
@@ -35,13 +36,23 @@ mod app {
         input::{self, InputMode},
         midi,
         peripherals::{
-            setup, ButtonMelodyPin, ButtonRhythmPin, ButtonTrackPin, Display, MidiIn, MidiOut,
+            setup, ButtonMelodyPin, ButtonGroovePin, ButtonTrackPin, Display, MidiIn, MidiOut,
         },
     };
 
     #[global_allocator]
     static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
     const HEAP_SIZE_BYTES: usize = 16 * 1024; // 16KB!
+
+    // time between each display render
+    // this is the practical upper bound for drawing and flushing a frame to the oled
+    // at 40ms, the frame rate will be 25 FPS
+    // we want the lowest frame rate that looks acceptable, to provide the largest budget for
+    // render times
+    const DISPLAY_UPDATE_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(40);
+
+    // how often to poll encoders for position updates
+    const ENCODER_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(1);
 
     /// Define RTIC monotonic timer. Also used for defmt.
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
@@ -72,8 +83,8 @@ mod app {
         /// Pin for button the [TRACK] button
         button_track_pin: ButtonTrackPin,
 
-        /// Pin for button the [RHYTHM] button
-        button_rhythm_pin: ButtonRhythmPin,
+        /// Pin for button the [GROOVE] button
+        button_groove_pin: ButtonGroovePin,
 
         /// Pin for button the [MELODY] button
         button_melody_pin: ButtonMelodyPin,
@@ -98,7 +109,7 @@ mod app {
         // create a device wrapper instance and grab some of the peripherals we need
         let (midi_in, midi_out, mut display, buttons, encoders, monotonic_timer) =
             setup(ctx.device);
-        let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
+        let (button_track_pin, button_groove_pin, button_melody_pin) = buttons;
 
         // show a splash screen for a bit
         display::render_splash_screen_view(&mut display).unwrap();
@@ -123,7 +134,7 @@ mod app {
                 midi_out,
                 display,
                 button_track_pin,
-                button_rhythm_pin,
+                button_groove_pin,
                 button_melody_pin,
                 encoders,
             },
@@ -206,7 +217,7 @@ mod app {
         binds = IO_IRQ_BANK0,
         priority = 4,
         shared = [input_mode],
-        local = [button_track_pin, button_rhythm_pin, button_melody_pin]
+        local = [button_track_pin, button_groove_pin, button_melody_pin]
     )]
     fn io_irq_bank0(mut ctx: io_irq_bank0::Context) {
         trace!("a wild gpio_bank0 interrupt has fired!");
@@ -219,12 +230,12 @@ mod app {
             });
             ctx.local.button_track_pin.clear_interrupt(EdgeLow);
         }
-        if ctx.local.button_rhythm_pin.interrupt_status(EdgeLow) {
-            info!("[RHYTHM] pressed");
+        if ctx.local.button_groove_pin.interrupt_status(EdgeLow) {
+            info!("[GROOVE] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
-                *input_mode = InputMode::Rhythm;
+                *input_mode = InputMode::Groove;
             });
-            ctx.local.button_rhythm_pin.clear_interrupt(EdgeLow);
+            ctx.local.button_groove_pin.clear_interrupt(EdgeLow);
         }
         if ctx.local.button_melody_pin.interrupt_status(EdgeLow) {
             info!("[MELODY] pressed");
@@ -252,6 +263,9 @@ mod app {
                 );
             })
         }
+
+        // read again in 1ms
+        read_encoders::spawn_after(ENCODER_READ_INTERVAL).unwrap();
     }
 
     // TODO we're locking all the shared state here, which blocks other tasks using that
@@ -274,6 +288,9 @@ mod app {
             )
             .unwrap();
         });
+
+        render_perform_view::spawn_after(DISPLAY_UPDATE_INTERVAL)
+            .expect("should be able to spawn_after display_update");
     }
 
     // idle task needed because default RTIC idle task calls wfi(), which breaks rtt

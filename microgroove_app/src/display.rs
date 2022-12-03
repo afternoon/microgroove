@@ -44,6 +44,7 @@ const SEQUENCE_UNDERLINE_Y_POS: i32 = 44;
 
 const PARAM_Y_POS: u32 = 51;
 
+// TODO move to another crate where it can be tested
 fn map_to_range(x: i32, in_min: i32, in_max: i32, out_min: i32, out_max: i32) -> i32 {
     (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min
 }
@@ -98,7 +99,7 @@ fn draw_header(
         .into_styled(background_style())
         .draw(display)?;
     let mut track_num_str: String<5> = String::from_str("TRK").unwrap();
-    write!(track_num_str, "{:02}", track_num);
+    write!(track_num_str, "{:02}", track_num).unwrap();
     Text::with_baseline(track_num_str.as_str(), Point::zero(), default_character_style(), Baseline::Top)
         .draw(display)?;
     if playing {
@@ -112,7 +113,7 @@ fn draw_header(
     }
     let title = match input_mode {
         InputMode::Track => "TRACK",
-        InputMode::Rhythm => "RHYTHM",
+        InputMode::Groove => "GROOVE",
         InputMode::Melody => "MELODY",
     };
     Text::with_text_style(
@@ -124,7 +125,7 @@ fn draw_header(
     .draw(display)?;
     match input_mode {
         InputMode::Track => { /* don't do nuffink */ }
-        InputMode::Rhythm | InputMode::Melody => {
+        InputMode::Groove | InputMode::Melody => {
             let machine_name = "MACHINE_NAME";
             Text::with_text_style(
                 machine_name,
@@ -227,7 +228,7 @@ fn draw_params(
 ) -> DisplayResult {
     let params = match input_mode {
         InputMode::Track => track.params(),
-        InputMode::Rhythm => track.rhythm_machine.params(),
+        InputMode::Groove => track.groove_machine.params(),
         InputMode::Melody => track.melody_machine.params(),
     };
     draw_param_table(display, input_mode, params)

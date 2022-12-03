@@ -15,6 +15,10 @@ pub trait Machine: Debug + Send {
     fn params_mut(&mut self) -> &mut ParamList;
 }
 
+pub fn machine_from_id(_id: &str) -> impl Machine {
+    unitmachine::UnitMachine::new()
+}
+
 pub mod unitmachine {
     extern crate alloc;
 

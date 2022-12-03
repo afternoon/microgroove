@@ -11,8 +11,8 @@ use core::cmp::Ordering;
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
-use params::{NumberParam, ParamList};
-use machines::Machine;
+use params::{EnumParam, NumberParam, ParamList};
+use machines::{Machine, machine_from_id};
 
 pub const TRACK_COUNT: usize = 16;
 
@@ -82,12 +82,22 @@ impl Ord for Step {
 
 #[derive(Clone, Copy, Debug)]
 pub enum TimeDivision {
-    NinetySixth = 1, // corresponds to midi standard of 24 clock pulses per quarter note
     ThirtySecond = 3,
     Sixteenth = 6,
     Eigth = 12,
     Quarter = 24,
     Whole = 96,
+}
+
+pub fn time_division_from_id(id: &str) -> TimeDivision {
+    match id {
+        "1/32" => TimeDivision::ThirtySecond,
+        "1/16" => TimeDivision::Sixteenth,
+        "1/8" => TimeDivision::Eigth,
+        "1/4" => TimeDivision::Quarter,
+        "1" => TimeDivision::Whole,
+        _ => TimeDivision::Sixteenth,
+    }
 }
 
 pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
@@ -102,30 +112,29 @@ pub struct Track {
     pub length: u8,
     pub midi_channel: Channel,
     pub steps: Sequence,
-    pub rhythm_machine: Box<dyn Machine>,
+    pub groove_machine: Box<dyn Machine>,
     pub melody_machine: Box<dyn Machine>,
     params: ParamList,
 }
 
 impl Track {
     pub fn new(
-        rhythm_machine: impl Machine + 'static,
+        groove_machine: impl Machine + 'static,
         melody_machine: impl Machine + 'static,
     ) -> Track {
         let mut params: ParamList = Vec::new();
-        // params.push(Box::new(RhythmMachineParam::new())).unwrap();
+        params.push(Box::new(EnumParam::new("GROOVE", "UNIT"))).unwrap();
         params.push(Box::new(NumberParam::new("LEN", TRACK_MIN_LENGTH as i8, TRACK_MAX_LENGTH as i8, TRACK_DEFAULT_LENGTH as i8))).unwrap();
         params.push(Box::new(NumberParam::new("TRACK", TRACK_MIN_NUM, TRACK_COUNT as i8, TRACK_DEFAULT_NUM))).unwrap();
-        // params.push(Box::new(MelodyMachineParam::new())).unwrap();
-        // params.push(Box::new(TrackSpeedParam::new())).unwrap();
+        params.push(Box::new(EnumParam::new("MELODY", "UNIT"))).unwrap();
+        params.push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1"))).unwrap();
         params.push(Box::new(NumberParam::new("CHAN", MIDI_MIN_CHANNEL, MIDI_MAX_CHANNEL, MIDI_DEFAULT_CHANNEL))).unwrap();
-
         Track {
             time_division: TimeDivision::Sixteenth,
             length: 16,
             midi_channel: 0.into(),
             steps: Track::generate_sequence(),
-            rhythm_machine: Box::new(rhythm_machine),
+            groove_machine: Box::new(groove_machine),
             melody_machine: Box::new(melody_machine),
             params,
         }
@@ -140,15 +149,12 @@ impl Track {
     }
 
     pub fn apply_params(&mut self) {
-        /*
-        0 -> rhythm_machine
-        1 -> length
-        2 -> track number -- ignore, handled by Sequencer::set_current_track
-        3 -> melody_machine
-        4 -> speed
-        5 -> midi_channel
-        */
-        panic!("TODO");
+        self.groove_machine = Box::new(machine_from_id(self.params[0].value_str().as_str()));
+        self.length = self.params[1].value_i8().unwrap() as u8;
+        // params[2], track number, is intentionally ignored, its handled by Sequencer::set_current_track
+        self.melody_machine = Box::new(machine_from_id(self.params[3].value_str().as_str()));
+        self.time_division = time_division_from_id(self.params[4].value_str().as_str());
+        self.midi_channel = (self.params[5].value_i8().unwrap() as u8).into();
     }
 
     fn generate_sequence() -> Sequence {

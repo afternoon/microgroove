@@ -1,18 +1,19 @@
 /// Handle user input (encoder turns, button presses).
 use microgroove_sequencer::sequencer::{self, Sequencer};
 use crate::encoder::encoder_array::ENCODER_COUNT;
-use heapless::Vec;
 use core::iter::zip;
+use defmt::debug;
+use heapless::Vec;
 
 #[derive(Clone, Copy, Debug)]
 pub enum InputMode {
     Track,
-    Rhythm,
+    Groove,
     Melody,
 }
 
-/// Iterate over `encoder_values` and pass to either `Track`, `RhythmMachine` or
-/// `MelodyMachine`, determined by `input_mode`.
+/// Iterate over `encoder_values` and pass to either `Track`, groove `Machine` or
+/// melody `Machine`, determined by `input_mode`.
 pub fn map_encoder_input(
     input_mode: InputMode,
     sequencer: &mut Sequencer,
@@ -23,13 +24,14 @@ pub fn map_encoder_input(
     let track = opt_track.as_mut().unwrap();
     let params_mut = match input_mode {
         InputMode::Track => track.params_mut(),
-        InputMode::Rhythm => track.rhythm_machine.params_mut(),
+        InputMode::Groove => track.groove_machine.params_mut(),
         InputMode::Melody => track.melody_machine.params_mut(),
     };
 
     // update params
     let params_and_values = zip(params_mut, encoder_values);
     for (param, value) in params_and_values {
+        debug!("increment param: {}, value: {}", param.name(), value);
         param.increment(value);
     }
 
