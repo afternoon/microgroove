@@ -17,8 +17,7 @@ pub const GROOVE_MACHINE_IDS: &str = "UNIT";
 pub const MELODY_MACHINE_IDS: &str = "UNIT";
 
 pub fn machine_from_id(id: &str) -> Option<impl Machine> {
-    let mut id_upcase = String::<6>::from(id);
-    id_upcase.make_ascii_uppercase();
+    let id_upcase = String::<6>::from(id).to_uppercase();
     match id_upcase.as_str() {
         "UNIT" => Some(unitmachine::UnitMachine::new()),
         _ => None,
