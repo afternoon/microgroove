@@ -150,7 +150,7 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
     let display_sequence_margin_left =
         (DISPLAY_WIDTH - (track.length as i32 * (step_width as i32 + 1))) / 2;
     let note_min: u8 = track
-        .steps
+        .sequence
         .iter()
         .min()
         .unwrap()
@@ -159,7 +159,7 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
         .note
         .into();
     let note_max: u8 = track
-        .steps
+        .sequence
         .iter()
         .max()
         .unwrap()
@@ -180,7 +180,7 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
     .into_styled(background_style())
     .draw(display)?;
 
-    for step in &track.steps {
+    for step in &track.sequence {
         if let Some(step) = step {
             let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
             let x2 = x + step_width as i32;

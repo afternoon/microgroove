@@ -102,16 +102,12 @@ pub fn time_division_from_id(id: &str) -> TimeDivision {
 
 pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
 
-pub trait SequenceProcessor {
-    fn apply(&self, sequence: Sequence) -> Sequence;
-}
-
 #[derive(Debug)]
 pub struct Track {
     pub time_division: TimeDivision,
     pub length: u8,
     pub midi_channel: Channel,
-    pub steps: Sequence,
+    pub sequence: Sequence,
     pub groove_machine: Box<dyn Machine>,
     pub melody_machine: Box<dyn Machine>,
     params: ParamList,
@@ -156,15 +152,17 @@ impl Track {
                 MIDI_DEFAULT_CHANNEL,
             )))
             .unwrap();
-        Track {
+        let mut track = Track {
             time_division: TimeDivision::Sixteenth,
             length: 16,
             midi_channel: 0.into(),
-            steps: Track::generate_sequence(),
+            sequence: Track::initial_sequence(),
             groove_machine: Box::new(groove_machine),
             melody_machine: Box::new(melody_machine),
             params,
-        }
+        };
+        track.generate_sequence();
+        track
     }
 
     pub fn params(&self) -> &ParamList {
@@ -186,9 +184,11 @@ impl Track {
         self.midi_channel = (self.params[5].value_i8().unwrap() as u8).into();
     }
 
-    fn generate_sequence() -> Sequence {
-        Self::initial_sequence()
-        // TODO pipe sequence through machines
+    /// Generate a sequence by piping the initial sequence through the set of configured machines.
+    fn generate_sequence(&mut self) {
+        self.sequence = self.melody_machine.apply(
+            self.groove_machine.apply(
+                Self::initial_sequence()))
     }
 
     fn initial_sequence() -> Sequence {
@@ -207,7 +207,7 @@ impl Track {
         if !self.should_play_on_tick(tick) {
             return None;
         }
-        self.steps
+        self.sequence
             .get(self.step_num(tick) as usize)
             .unwrap()
             .as_ref()

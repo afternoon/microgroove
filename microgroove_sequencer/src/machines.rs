@@ -1,19 +1,19 @@
 extern crate alloc;
 
-use alloc::boxed::Box;
 use core::fmt::Debug;
 use heapless::String;
 
-use crate::{params::ParamList, SequenceProcessor};
+use crate::{params::ParamList, Sequence};
 
 pub trait Machine: Debug + Send {
     fn name(&self) -> &str;
-    fn sequence_processor(&self) -> Box<dyn SequenceProcessor>;
+    fn apply(&self, sequence: Sequence) -> Sequence;
     fn params(&self) -> &ParamList;
     fn params_mut(&mut self) -> &mut ParamList;
 }
 
 pub const GROOVE_MACHINE_IDS: &str = "UNIT";
+
 pub const MELODY_MACHINE_IDS: &str = "UNIT";
 
 pub fn machine_from_id(id: &str) -> Option<impl Machine> {
@@ -31,7 +31,7 @@ pub mod unitmachine {
     use super::Machine;
     use crate::{
         params::{NumberParam, ParamList},
-        Sequence, SequenceProcessor,
+        Sequence,
     };
     use alloc::boxed::Box;
 
@@ -42,10 +42,8 @@ pub mod unitmachine {
         fn new() -> UnitProcessor {
             UnitProcessor {}
         }
-    }
 
-    impl SequenceProcessor for UnitProcessor {
-        fn apply(&self, sequence: Sequence) -> Sequence {
+        fn apply(&self, sequence: Sequence, _unused_argument: i8) -> Sequence {
             sequence
         }
     }
@@ -75,8 +73,9 @@ pub mod unitmachine {
             "UNIT"
         }
 
-        fn sequence_processor(&self) -> Box<dyn SequenceProcessor> {
-            Box::new(self.sequence_processor)
+        fn apply(&self, sequence: Sequence) -> Sequence {
+            let num = self.params[0].value_i8().unwrap();
+            self.sequence_processor.apply(sequence, num)
         }
 
         fn params(&self) -> &ParamList {
