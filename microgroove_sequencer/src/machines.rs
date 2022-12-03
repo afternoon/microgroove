@@ -25,6 +25,7 @@ pub fn machine_from_id(id: &str) -> Option<impl Machine> {
     }
 }
 
+/// Reference machine which passes sequence input through unmodified.
 pub mod unitmachine {
     extern crate alloc;
 
@@ -74,8 +75,8 @@ pub mod unitmachine {
         }
 
         fn apply(&self, sequence: Sequence) -> Sequence {
-            let num = self.params[0].value_i8().unwrap();
-            self.sequence_processor.apply(sequence, num)
+            let unused_argument = self.params[0].value_i8().unwrap();
+            self.sequence_processor.apply(sequence, unused_argument)
         }
 
         fn params(&self) -> &ParamList {
@@ -88,4 +89,17 @@ pub mod unitmachine {
     }
 
     unsafe impl Send for UnitMachine {}
+
+    #[cfg(test)]
+    mod tests {
+        use crate::Track;
+        use super::*;
+
+        #[test]
+        fn unitmachine_should_passthrough_sequence_unmodified() {
+            let machine = UnitMachine::new();
+            let sequence = machine.apply(Track::initial_sequence());
+            assert_eq!(Track::initial_sequence(), sequence);
+        }
+    }
 }

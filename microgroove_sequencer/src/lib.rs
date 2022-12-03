@@ -216,11 +216,19 @@ impl Track {
 
 #[cfg(test)]
 mod test {
+    use crate::machines::unitmachine::UnitMachine;
+
     use super::*;
 
     #[test]
     fn steps_are_correctly_ordered() {
         let (s1, s2) = (Step::new(60), Step::new(61));
         assert!(s1 < s2);
+    }
+
+    #[test]
+    fn sequences_are_generated_correctly_with_default_setup() {
+        let t = Track::new(UnitMachine::new(), UnitMachine::new());
+        assert_eq!(Track::initial_sequence(), t.sequence);
     }
 }
