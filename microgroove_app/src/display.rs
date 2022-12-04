@@ -145,28 +145,11 @@ fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
 }
 
 fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> DisplayResult {
-    let step_width: u32 = if track.length < 17 { 6 } else { 3 };
+    let step_width: u32 = if track.length <= 17 { 6 } else { 3 };
     let step_height: u32 = step_width;
     let display_sequence_margin_left =
-        (DISPLAY_WIDTH - (track.length as i32 * (step_width as i32 + 1))) / 2;
-    let note_min: u8 = track
-        .sequence
-        .iter()
-        .min()
-        .unwrap()
-        .as_ref()
-        .unwrap()
-        .note
-        .into();
-    let note_max: u8 = track
-        .sequence
-        .iter()
-        .max()
-        .unwrap()
-        .as_ref()
-        .unwrap()
-        .note
-        .into();
+        (DISPLAY_WIDTH - ((track.length as i32) * ((step_width as i32) + 1))) / 2;
+    let (note_min, note_max) = note_min_max_as_u8s(track);
     let note_y_pos_min: u32 = 35;
     let note_y_pos_max: u32 = 9 + step_height as u32;
     let step_size = Size::new(step_width, step_height);
@@ -215,6 +198,28 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
     }
 
     Ok(())
+}
+
+fn note_min_max_as_u8s(track: &Track) -> (u8, u8) {
+    let note_min: u8 = track
+        .sequence
+        .iter()
+        .min()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .note
+        .into();
+    let note_max: u8 = track
+        .sequence
+        .iter()
+        .max()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .note
+        .into();
+    (note_min, note_max)
 }
 
 fn draw_params(display: &mut Display, input_mode: InputMode, track: &Track) -> DisplayResult {

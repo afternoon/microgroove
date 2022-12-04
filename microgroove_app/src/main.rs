@@ -114,8 +114,6 @@ mod app {
         // show a splash screen for a bit
         display::render_splash_screen_view(&mut display).unwrap();
 
-        info!("[init] spawning tasks");
-
         // start scheduled task to read encoders
         read_encoders::spawn().expect("read_encoders::spawn should succeed");
 

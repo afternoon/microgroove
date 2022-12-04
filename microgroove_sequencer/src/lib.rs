@@ -16,9 +16,9 @@ use params::{EnumParam, NumberParam, ParamList};
 
 pub const TRACK_COUNT: usize = 16;
 
-const TRACK_MIN_LENGTH: usize = 1; // because live performance effect of repeating a single step
+const TRACK_MIN_LENGTH: u8 = 1; // because live performance effect of repeating a single step
 const TRACK_MAX_LENGTH: usize = 32;
-const TRACK_DEFAULT_LENGTH: usize = 8; // because techno
+const TRACK_DEFAULT_LENGTH: u8 = 8; // because techno
 
 const TRACK_MIN_NUM: i8 = 1;
 const TRACK_DEFAULT_NUM: i8 = 1;
@@ -102,6 +102,55 @@ pub fn time_division_from_id(id: &str) -> TimeDivision {
 
 pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
 
+/// Generate a sequence by piping the initial sequence through the set of configured machines.
+fn generate_sequence(length: u8, groove_machine: &dyn Machine, melody_machine: &dyn Machine) -> Sequence {
+    melody_machine.apply(
+        groove_machine.apply(
+            initial_sequence(length)))
+}
+
+fn initial_sequence(length: u8) -> Sequence {
+    (0..length).map(|_i| Some(Step::new(60))).collect()
+}
+
+fn track_params() -> ParamList {
+    let mut params: ParamList = Vec::new();
+    params
+        .push(Box::new(EnumParam::new("GROOVE", GROOVE_MACHINE_IDS)))
+        .unwrap();
+    params
+        .push(Box::new(NumberParam::new(
+            "LEN",
+            TRACK_MIN_LENGTH as i8,
+            TRACK_MAX_LENGTH as i8,
+            TRACK_DEFAULT_LENGTH as i8,
+        )))
+        .unwrap();
+    params
+        .push(Box::new(NumberParam::new(
+            "TRACK",
+            TRACK_MIN_NUM,
+            TRACK_COUNT as i8,
+            TRACK_DEFAULT_NUM,
+        )))
+        .unwrap();
+    params
+        .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS)))
+        .unwrap();
+    params
+        .push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1")))
+        .unwrap();
+    params
+        .push(Box::new(NumberParam::new(
+            "CHAN",
+            MIDI_MIN_CHANNEL,
+            MIDI_MAX_CHANNEL,
+            MIDI_DEFAULT_CHANNEL,
+        )))
+        .unwrap();
+    params
+}
+
 #[derive(Debug)]
 pub struct Track {
     pub time_division: TimeDivision,
@@ -118,51 +167,18 @@ impl Track {
         groove_machine: impl Machine + 'static,
         melody_machine: impl Machine + 'static,
     ) -> Track {
-        let mut params: ParamList = Vec::new();
-        params
-            .push(Box::new(EnumParam::new("GROOVE", GROOVE_MACHINE_IDS)))
-            .unwrap();
-        params
-            .push(Box::new(NumberParam::new(
-                "LEN",
-                TRACK_MIN_LENGTH as i8,
-                TRACK_MAX_LENGTH as i8,
-                TRACK_DEFAULT_LENGTH as i8,
-            )))
-            .unwrap();
-        params
-            .push(Box::new(NumberParam::new(
-                "TRACK",
-                TRACK_MIN_NUM,
-                TRACK_COUNT as i8,
-                TRACK_DEFAULT_NUM,
-            )))
-            .unwrap();
-        params
-            .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS)))
-            .unwrap();
-        params
-            .push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1")))
-            .unwrap();
-        params
-            .push(Box::new(NumberParam::new(
-                "CHAN",
-                MIDI_MIN_CHANNEL,
-                MIDI_MAX_CHANNEL,
-                MIDI_DEFAULT_CHANNEL,
-            )))
-            .unwrap();
-        let mut track = Track {
+        let length = TRACK_DEFAULT_LENGTH;
+        let sequence = generate_sequence(length, &groove_machine, &melody_machine);
+        let params = track_params();
+        Track {
             time_division: TimeDivision::Sixteenth,
-            length: 16,
+            length,
             midi_channel: 0.into(),
-            sequence: Track::initial_sequence(),
+            sequence,
             groove_machine: Box::new(groove_machine),
             melody_machine: Box::new(melody_machine),
             params,
-        };
-        track.generate_sequence();
-        track
+        }
     }
 
     pub fn params(&self) -> &ParamList {
@@ -182,17 +198,11 @@ impl Track {
             Box::new(machine_from_id(self.params[3].value_str().as_str()).unwrap());
         self.time_division = time_division_from_id(self.params[4].value_str().as_str());
         self.midi_channel = (self.params[5].value_i8().unwrap() as u8).into();
+        self.generate_sequence();
     }
 
-    /// Generate a sequence by piping the initial sequence through the set of configured machines.
-    fn generate_sequence(&mut self) {
-        self.sequence = self.melody_machine.apply(
-            self.groove_machine.apply(
-                Self::initial_sequence()))
-    }
-
-    fn initial_sequence() -> Sequence {
-        (0..16).map(|_i| Some(Step::new(60))).collect()
+    pub fn generate_sequence(&mut self) {
+        self.sequence = generate_sequence(self.length, &*self.groove_machine, &*self.melody_machine)
     }
 
     pub fn should_play_on_tick(&self, tick: u32) -> bool {
@@ -229,6 +239,7 @@ mod test {
     #[test]
     fn sequences_are_generated_correctly_with_default_setup() {
         let t = Track::new(UnitMachine::new(), UnitMachine::new());
-        assert_eq!(Track::initial_sequence(), t.sequence);
+        let expected: Sequence = (0..16).map(|_i| Some(Step::new(60))).collect();
+        assert_eq!(expected, t.sequence);
     }
 }
