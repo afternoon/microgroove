@@ -17,7 +17,7 @@ pub enum InputMode {
 pub fn map_encoder_input(
     input_mode: InputMode,
     sequencer: &mut Sequencer,
-    encoder_values: Vec<i8, ENCODER_COUNT>,
+    encoder_values: Vec<Option<i8>, ENCODER_COUNT>,
 ) {
     let opt_track = sequencer.current_track_mut();
     opt_track.get_or_insert_with(|| sequencer::new_track_with_default_machines());
@@ -29,10 +29,13 @@ pub fn map_encoder_input(
     };
 
     // update params
+    // TODO param updates are all over the place!!
     let params_and_values = zip(params_mut, encoder_values);
     for (param, value) in params_and_values {
-        debug!("increment param: {}, value: {}", param.name(), value);
-        param.increment(value);
+        if let Some(value) = value {
+            debug!("[map_encoder_input] increment param={}, value={}", param.name(), value);
+            param.increment(value);
+        }
     }
 
     // write param data back to track member variables and set the current track in the

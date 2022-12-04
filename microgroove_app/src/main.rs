@@ -52,7 +52,7 @@ mod app {
     const DISPLAY_UPDATE_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(40);
 
     // how often to poll encoders for position updates
-    const ENCODER_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(1);
+    const ENCODER_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(2);
 
     /// Define RTIC monotonic timer. Also used for defmt.
     #[monotonic(binds = TIMER_IRQ_0, default = true)]

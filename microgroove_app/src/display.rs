@@ -29,7 +29,7 @@ const WARNING_PADDING: i32 = 5;
 const WARNING_BORDER: u32 = 2;
 
 const HEADER_WIDTH: u32 = DISPLAY_WIDTH as u32;
-const HEADER_HEIGHT: u32 = 5;
+const HEADER_HEIGHT: u32 = 6;
 const HEADER_PLAYING_ICON_X_POS: i32 = 24;
 
 const SEQUENCE_X_POS: i32 = 0;
@@ -127,7 +127,7 @@ fn draw_header(
     match input_mode {
         InputMode::Track => { /* don't do nuffink */ }
         InputMode::Groove | InputMode::Melody => {
-            let machine_name = "MACHINE_NAME";
+            let machine_name = "MACHINE_NAME"; // TODO show actual machine name
             Text::with_text_style(
                 machine_name,
                 Point::new(DISPLAY_WIDTH, 0),
@@ -350,6 +350,7 @@ fn right_align() -> TextStyle {
         .build()
 }
 
+// TODO rendering of warnings is broken - border outside width of display, padding unevenn
 fn warning(display: &mut Display, text: &str) -> DisplayResult {
     let char_width = 8; // assumes FONT_8X13_ITALIC
     let char_height = 13; // assumes FONT_8X13_ITALIC

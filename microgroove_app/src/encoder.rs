@@ -1,6 +1,6 @@
 pub mod positional_encoder {
     use core::fmt::Debug;
-    use defmt::error;
+    use defmt::{error, trace};
     use rotary_encoder_hal::{Direction, Rotary};
     use rp_pico::hal::gpio::DynPin;
 
@@ -25,16 +25,21 @@ pub mod positional_encoder {
         pub fn update(&mut self) -> Option<i8> {
             match self.encoder.update() {
                 Ok(Direction::Clockwise) => {
+                    trace!("[PositionalEncoder::update] Direction::Clockwise");
                     self.value += 1;
                     Some(self.value)
                 }
                 Ok(Direction::CounterClockwise) => {
-                    self.value += 1;
+                    trace!("[PositionalEncoder::update] Direction::CounterClockwise");
+                    self.value -= 1;
                     Some(self.value)
                 }
-                Ok(Direction::None) => None,
+                Ok(Direction::None) => {
+                    trace!("[PositionalEncoder::update] Direction::None");
+                    None
+                },
                 Err(_error) => {
-                    error!("could not update encoder");
+                    error!("[PositionalEncoder::update] could not update encoder");
                     None
                 }
             }
@@ -43,10 +48,14 @@ pub mod positional_encoder {
         /// Get the value of the encoder, and then reset that to zero. This has the
         /// semantics of "I would like to know your value, which I will use to update my
         /// state, so you can then discard it."
-        pub fn take_value(&mut self) -> i8 {
-            let val = self.value;
-            self.value = 0;
-            val
+        pub fn take_value(&mut self) -> Option<i8> {
+            let value = self.value;
+            if value == 0 {
+                None
+            } else {
+                self.value = 0;
+                Some(value)
+            }
         }
     }
 
@@ -86,7 +95,7 @@ pub mod encoder_array {
             }
         }
 
-        pub fn take_values(&mut self) -> Vec<i8, ENCODER_COUNT> {
+        pub fn take_values(&mut self) -> Vec<Option<i8>, ENCODER_COUNT> {
             self.encoders
                 .iter_mut()
                 .map(|enc| enc.take_value())
