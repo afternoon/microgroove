@@ -150,7 +150,7 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
     let display_sequence_margin_left =
         (DISPLAY_WIDTH - ((track.length as i32) * ((step_width as i32) + 1))) / 2;
     let (note_min, note_max) = note_min_max_as_u8s(track);
-    let note_y_pos_min: u32 = 35;
+    let note_y_pos_min: u32 = 34;
     let note_y_pos_max: u32 = 9 + step_height as u32;
     let step_size = Size::new(step_width, step_height);
     let mut step_num: u32 = 0;
@@ -189,7 +189,7 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
             // draw step underline
             Line::new(
                 Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
-                Point::new(x2, SEQUENCE_UNDERLINE_Y_POS),
+                Point::new(x2 - 1, SEQUENCE_UNDERLINE_Y_POS),
             )
             .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
             .draw(display)?;

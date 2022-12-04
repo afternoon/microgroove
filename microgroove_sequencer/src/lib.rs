@@ -237,9 +237,19 @@ mod test {
     }
 
     #[test]
-    fn sequences_are_generated_correctly_with_default_setup() {
+    fn track_new_generates_sequence_correctly() {
         let t = Track::new(UnitMachine::new(), UnitMachine::new());
-        let expected: Sequence = (0..16).map(|_i| Some(Step::new(60))).collect();
+        let expected: Sequence = (0..8).map(|_i| Some(Step::new(60))).collect();
         assert_eq!(expected, t.sequence);
+    }
+
+    #[test]
+    fn track_apply_generates_sequence_correctly() {
+        let mut t = Track::new(UnitMachine::new(), UnitMachine::new());
+        t.params[1].increment(-1);
+        t.apply_params();
+        let expected: Sequence = (0..7).map(|_i| Some(Step::new(60))).collect();
+        assert_eq!(expected, t.sequence);
+
     }
 }

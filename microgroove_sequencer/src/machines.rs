@@ -91,14 +91,15 @@ pub mod unitmachine {
 
     #[cfg(test)]
     mod tests {
-        use crate::Track;
+        use crate::initial_sequence;
         use super::*;
 
         #[test]
         fn unitmachine_should_passthrough_sequence_unmodified() {
             let machine = UnitMachine::new();
-            let sequence = machine.apply(Track::initial_sequence());
-            assert_eq!(Track::initial_sequence(), sequence);
+            let input_sequence = initial_sequence(8);
+            let output_sequence = machine.apply(initial_sequence(8));
+            assert_eq!(output_sequence, input_sequence);
         }
     }
 }
