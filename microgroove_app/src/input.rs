@@ -1,9 +1,5 @@
 use crate::encoder::encoder_array::ENCODER_COUNT;
-use microgroove_sequencer::{
-    params::wrapping_add,
-    sequencer::{self, Sequencer},
-    TRACK_COUNT,
-};
+use microgroove_sequencer::{params::wrapping_add, sequencer::Sequencer, Track, TRACK_COUNT};
 
 use core::iter::zip;
 use defmt::{debug, Format};
@@ -53,11 +49,14 @@ pub fn map_encoder_input(
         if only_track_num_has_changed(input_mode, &encoder_values) {
             return;
         }
-        let mut new_track = sequencer::new_track_with_default_machines();
-        new_track.midi_channel = track_num.into();
+        let new_track = Track {
+            midi_channel: track_num.into(),
+            ..Default::default()
+        };
         let _ = maybe_track.insert(new_track);
     }
 
+    // get &mut to the relevant set of params
     let track = maybe_track.as_mut().unwrap();
     let params_mut = match input_mode {
         InputMode::Track => track.params_mut(),
@@ -66,7 +65,6 @@ pub fn map_encoder_input(
     };
 
     // update params
-    // TODO param updates are all over the place!!
     let params_and_values = zip(params_mut, encoder_values);
     for (param, value) in params_and_values {
         if let Some(value) = value {

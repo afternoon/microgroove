@@ -74,7 +74,16 @@ pub fn render_perform_view(
     track_num: usize,
     active_step_num: Option<u32>,
 ) -> DisplayResult {
-    draw_header(display, input_mode, playing, track_num)?;
+    let machine_name = if let Some(track) = track {
+        match input_mode {
+            InputMode::Track => "",
+            InputMode::Groove => track.groove_machine.name(),
+            InputMode::Melody => track.melody_machine.name(),
+        }
+    } else {
+        ""
+    };
+    draw_header(display, input_mode, playing, track_num, machine_name)?;
     if let Some(track) = track {
         draw_sequence(display, track, active_step_num.unwrap())?;
         draw_params(display, input_mode, track, track_num)?;
@@ -90,6 +99,7 @@ fn draw_header(
     input_mode: InputMode,
     playing: bool,
     track_num: usize,
+    machine_name: &str,
 ) -> DisplayResult {
     Rectangle::new(Point::zero(), Size::new(HEADER_WIDTH, HEADER_HEIGHT))
         .into_styled(background_style())
@@ -127,7 +137,6 @@ fn draw_header(
     match input_mode {
         InputMode::Track => { /* don't do nuffink */ }
         InputMode::Groove | InputMode::Melody => {
-            let machine_name = "MACHINE_NAME"; // TODO show actual machine name
             Text::with_text_style(
                 machine_name,
                 Point::new(DISPLAY_WIDTH, 0),
@@ -388,7 +397,6 @@ fn right_align() -> TextStyle {
         .build()
 }
 
-// TODO rendering of warnings is broken - border outside width of display, padding unevenn
 fn warning(display: &mut Display, text: &str) -> DisplayResult {
     let char_width = 6;
     let char_height = 10;

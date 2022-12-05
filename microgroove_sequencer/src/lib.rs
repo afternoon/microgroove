@@ -164,7 +164,7 @@ pub struct Track {
     pub sequence: Sequence,
     pub groove_machine: Box<dyn Machine>,
     pub melody_machine: Box<dyn Machine>,
-    params: ParamList,
+    pub params: ParamList,
 }
 
 impl Track {
