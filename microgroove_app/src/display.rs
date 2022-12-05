@@ -3,7 +3,7 @@ use core::{fmt::Write, iter::zip, str::FromStr};
 use display_interface::DisplayError;
 use embedded_graphics::{
     mono_font::{
-        ascii::{FONT_4X6, FONT_8X13_ITALIC},
+        ascii::{FONT_4X6, FONT_6X10},
         MonoTextStyle,
     },
     pixelcolor::BinaryColor,
@@ -24,9 +24,9 @@ const DISPLAY_CENTER: i32 = DISPLAY_WIDTH / 2;
 
 const CHAR_HEIGHT: u32 = 7;
 
-const WARNING_Y_POS: i32 = 20;
-const WARNING_PADDING: i32 = 5;
-const WARNING_BORDER: u32 = 2;
+const WARNING_Y_POS: i32 = 21;
+const WARNING_PADDING: i32 = 4;
+const WARNING_BORDER: u32 = 1;
 
 const HEADER_WIDTH: u32 = DISPLAY_WIDTH as u32;
 const HEADER_HEIGHT: u32 = 6;
@@ -36,7 +36,7 @@ const SEQUENCE_X_POS: i32 = 0;
 const SEQUENCE_Y_POS: i32 = HEADER_HEIGHT as i32 + 1;
 const SEQUENCE_WIDTH: u32 = DISPLAY_WIDTH as u32;
 const SEQUENCE_HEIGHT: u32 = 45;
-const SEQUENCE_UNDERLINE_Y_POS: i32 = 44;
+const SEQUENCE_UNDERLINE_Y_POS: i32 = 45;
 
 const PARAM_Y_POS: u32 = 51;
 
@@ -141,6 +141,12 @@ fn draw_header(
 }
 
 fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
+    Rectangle::new(
+        Point::new(SEQUENCE_X_POS, SEQUENCE_Y_POS),
+        Size::new(SEQUENCE_WIDTH, SEQUENCE_HEIGHT + (DISPLAY_HEIGHT as u32 - PARAM_Y_POS)),
+    )
+    .into_styled(background_style())
+    .draw(display)?;
     warning(display, "TRACK DISABLED")
 }
 
@@ -150,7 +156,7 @@ fn draw_sequence(display: &mut Display, track: &Track, active_step_num: u32) -> 
     let display_sequence_margin_left =
         (DISPLAY_WIDTH - ((track.length as i32) * ((step_width as i32) + 1))) / 2;
     let (note_min, note_max) = note_min_max_as_u8s(track);
-    let note_y_pos_min: u32 = 34;
+    let note_y_pos_min: u32 = 35;
     let note_y_pos_max: u32 = 9 + step_height as u32;
     let step_size = Size::new(step_width, step_height);
     let mut step_num: u32 = 0;
@@ -314,7 +320,7 @@ fn default_character_style<'a>() -> MonoTextStyle<'a, BinaryColor> {
 }
 
 fn big_character_style<'a>() -> MonoTextStyle<'a, BinaryColor> {
-    MonoTextStyle::new(&FONT_8X13_ITALIC, BinaryColor::On)
+    MonoTextStyle::new(&FONT_6X10, BinaryColor::On)
 }
 
 fn background_style() -> PrimitiveStyle<BinaryColor> {
@@ -333,7 +339,7 @@ fn outline_style() -> PrimitiveStyle<BinaryColor> {
         .build()
 }
 
-fn fat_outline_style() -> PrimitiveStyle<BinaryColor> {
+fn warning_style() -> PrimitiveStyle<BinaryColor> {
     PrimitiveStyleBuilder::new()
         .stroke_color(BinaryColor::On)
         .stroke_width(WARNING_BORDER)
@@ -357,21 +363,21 @@ fn right_align() -> TextStyle {
 
 // TODO rendering of warnings is broken - border outside width of display, padding unevenn
 fn warning(display: &mut Display, text: &str) -> DisplayResult {
-    let char_width = 8; // assumes FONT_8X13_ITALIC
-    let char_height = 13; // assumes FONT_8X13_ITALIC
-    let space_width = 1; // TODO check this
+    let char_width = 6;
+    let char_height = 10;
+    let space_width = 1;
     let text_width = ((text.len() * char_width)
         + ((text.len() - 1) * space_width)
         + (WARNING_PADDING as usize * 2)) as i32;
     let text_margin_left = (DISPLAY_WIDTH - text_width) / 2;
     let warning_width = DISPLAY_WIDTH - (text_margin_left * 2);
-    let warning_height = char_height + WARNING_PADDING * 2;
+    let warning_height = char_height + WARNING_PADDING * 2 + WARNING_BORDER as i32 * 2;
     let warning_text_y_pos = WARNING_Y_POS + WARNING_PADDING + WARNING_BORDER as i32;
     Rectangle::new(
         Point::new(text_margin_left, WARNING_Y_POS),
         Size::new(warning_width as u32, warning_height as u32),
     )
-    .into_styled(fat_outline_style())
+    .into_styled(warning_style())
     .draw(display)?;
     Text::with_text_style(
         text,
