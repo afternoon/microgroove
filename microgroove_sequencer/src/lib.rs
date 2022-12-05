@@ -168,24 +168,6 @@ pub struct Track {
 }
 
 impl Track {
-    pub fn new(
-        groove_machine: impl Machine + 'static,
-        melody_machine: impl Machine + 'static,
-    ) -> Track {
-        let length = TRACK_DEFAULT_LENGTH;
-        let sequence = generate_sequence(length, &groove_machine, &melody_machine);
-        let params = track_params();
-        Track {
-            time_division: TimeDivision::Sixteenth,
-            length,
-            midi_channel: 0.into(),
-            sequence,
-            groove_machine: Box::new(groove_machine),
-            melody_machine: Box::new(melody_machine),
-            params,
-        }
-    }
-
     pub fn params(&self) -> &ParamList {
         &self.params
     }
@@ -259,14 +241,14 @@ mod test {
     }
 
     #[test]
-    fn track_new_generates_sequence_correctly() {
+    fn track_default_generates_sequence_correctly() {
         let t = Track::default();
         let expected: Sequence = (0..8).map(|_i| Some(Step::new(60))).collect();
         assert_eq!(expected, t.sequence);
     }
 
     #[test]
-    fn track_apply_generates_sequence_correctly() {
+    fn track_apply_params_generates_sequence_correctly() {
         let mut t = Track::default();
         t.params[1].increment(-1);
         t.apply_params();
