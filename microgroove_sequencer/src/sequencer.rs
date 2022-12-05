@@ -4,7 +4,7 @@ use embedded_midi::MidiMessage;
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};
 
-use crate::{machines::unitmachine::UnitMachine, Track, TRACK_COUNT};
+use crate::{Track, TRACK_COUNT};
 
 // TODO will cause issues if polyphony
 const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
@@ -20,10 +20,6 @@ pub enum ScheduledMidiMessage {
 const DEFAULT_BPM: u64 = 130;
 const DEFAULT_TICK_DURATION_US: u64 = (60 / DEFAULT_BPM) / 24;
 
-pub fn new_track_with_default_machines() -> Track {
-    Track::new(UnitMachine::new(), UnitMachine::new())
-}
-
 pub struct Sequencer {
     pub tracks: Vec<Option<Track>, TRACK_COUNT>,
     current_track_num: usize,
@@ -38,7 +34,7 @@ impl Sequencer {
         // create a set of empty tracks
         let mut tracks = Vec::new();
         tracks
-            .push(Some(new_track_with_default_machines()))
+            .push(Some(Track::default()))
             .expect("inserting track into tracks vector should succeed");
         for _ in 1..TRACK_COUNT {
             tracks

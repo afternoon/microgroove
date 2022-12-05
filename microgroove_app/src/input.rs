@@ -13,8 +13,9 @@ type EncoderValues = Vec<Option<i8>, ENCODER_COUNT>;
 
 const TRACK_NUM_PARAM_INDEX: usize = 2;
 
-#[derive(Clone, Copy, Debug, Format)]
+#[derive(Clone, Copy, Debug, Default, Format)]
 pub enum InputMode {
+    #[default]
     Track,
     Groove,
     Melody,
@@ -41,6 +42,7 @@ pub fn map_encoder_input(
         }
     }
 
+    // make sure we have the latest track num
     let track_num = sequencer.current_track_num() as u8;
 
     // The current track might be disabled (None in the sequencer's `Vec` of tracks). If the user

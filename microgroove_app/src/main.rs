@@ -124,7 +124,7 @@ mod app {
 
         (
             Shared {
-                input_mode: InputMode::Track,
+                input_mode: Default::default(),
                 sequencer: Sequencer::new(),
             },
             Local {

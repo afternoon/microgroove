@@ -11,7 +11,9 @@ use core::cmp::Ordering;
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
-use machines::{machine_from_id, Machine, GROOVE_MACHINE_IDS, MELODY_MACHINE_IDS};
+use machines::{
+    machine_from_id, unitmachine::UnitMachine, Machine, GROOVE_MACHINE_IDS, MELODY_MACHINE_IDS,
+};
 use params::{EnumParam, NumberParam, ParamList};
 
 pub const TRACK_COUNT: usize = 16;
@@ -80,9 +82,10 @@ impl Ord for Step {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum TimeDivision {
     ThirtySecond = 3,
+    #[default]
     Sixteenth = 6,
     Eigth = 12,
     Quarter = 24,
@@ -226,10 +229,27 @@ impl Track {
     }
 }
 
+impl Default for Track {
+    fn default() -> Track {
+        let length = TRACK_DEFAULT_LENGTH;
+        let groove_machine = UnitMachine::new();
+        let melody_machine = UnitMachine::new();
+        let sequence = generate_sequence(length, &groove_machine, &melody_machine);
+        let params = track_params();
+        Track {
+            time_division: TimeDivision::Sixteenth,
+            length,
+            midi_channel: 0.into(),
+            sequence,
+            groove_machine: Box::new(groove_machine),
+            melody_machine: Box::new(melody_machine),
+            params,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::machines::unitmachine::UnitMachine;
-
     use super::*;
 
     #[test]
@@ -240,14 +260,14 @@ mod test {
 
     #[test]
     fn track_new_generates_sequence_correctly() {
-        let t = Track::new(UnitMachine::new(), UnitMachine::new());
+        let t = Track::default();
         let expected: Sequence = (0..8).map(|_i| Some(Step::new(60))).collect();
         assert_eq!(expected, t.sequence);
     }
 
     #[test]
     fn track_apply_generates_sequence_correctly() {
-        let mut t = Track::new(UnitMachine::new(), UnitMachine::new());
+        let mut t = Track::default();
         t.params[1].increment(-1);
         t.apply_params();
         let expected: Sequence = (0..7).map(|_i| Some(Step::new(60))).collect();
