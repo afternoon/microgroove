@@ -41,6 +41,8 @@ pub fn map_encoder_input(
         }
     }
 
+    let track_num = sequencer.current_track_num() as u8;
+
     // The current track might be disabled (None in the sequencer's `Vec` of tracks). If the user
     // browses through tracks using the track num encoder on the track page, then we do nothing
     // more here. Any other encoder input triggers the creation of a new track in the current slot.
@@ -49,7 +51,9 @@ pub fn map_encoder_input(
         if only_track_num_has_changed(input_mode, &encoder_values) {
             return;
         }
-        let _ = maybe_track.insert(sequencer::new_track_with_default_machines());
+        let mut new_track = sequencer::new_track_with_default_machines();
+        new_track.midi_channel = track_num.into();
+        let _ = maybe_track.insert(new_track);
     }
 
     let track = maybe_track.as_mut().unwrap();
