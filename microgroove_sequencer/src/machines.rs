@@ -91,8 +91,8 @@ pub mod unitmachine {
 
     #[cfg(test)]
     mod tests {
-        use crate::initial_sequence;
         use super::*;
+        use crate::initial_sequence;
 
         #[test]
         fn unitmachine_should_passthrough_sequence_unmodified() {

@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use core::fmt::{Debug, Write};
 use heapless::{String, Vec};
 
-fn wrapping_add(a: i32, b: i32, max: i32) -> i32 {
+pub fn wrapping_add(a: i32, b: i32, max: i32) -> i32 {
     let size = max + 1;
     ((a + b % size) + size) % size
 }

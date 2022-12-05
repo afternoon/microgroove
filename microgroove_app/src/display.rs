@@ -77,7 +77,7 @@ pub fn render_perform_view(
     draw_header(display, input_mode, playing, track_num)?;
     if let Some(track) = track {
         draw_sequence(display, track, active_step_num.unwrap())?;
-        draw_params(display, input_mode, track)?;
+        draw_params(display, input_mode, track, track_num)?;
     } else {
         draw_disabled_track_warning(display)?;
     }
@@ -143,7 +143,10 @@ fn draw_header(
 fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
     Rectangle::new(
         Point::new(SEQUENCE_X_POS, SEQUENCE_Y_POS),
-        Size::new(SEQUENCE_WIDTH, SEQUENCE_HEIGHT + (DISPLAY_HEIGHT as u32 - PARAM_Y_POS)),
+        Size::new(
+            SEQUENCE_WIDTH,
+            SEQUENCE_HEIGHT + (DISPLAY_HEIGHT as u32 - PARAM_Y_POS),
+        ),
     )
     .into_styled(background_style())
     .draw(display)?;
@@ -228,19 +231,25 @@ fn note_min_max_as_u8s(track: &Track) -> (u8, u8) {
     (note_min, note_max)
 }
 
-fn draw_params(display: &mut Display, input_mode: InputMode, track: &Track) -> DisplayResult {
+fn draw_params(
+    display: &mut Display,
+    input_mode: InputMode,
+    track: &Track,
+    track_num: usize,
+) -> DisplayResult {
     let params = match input_mode {
         InputMode::Track => track.params(),
         InputMode::Groove => track.groove_machine.params(),
         InputMode::Melody => track.melody_machine.params(),
     };
-    draw_param_table(display, input_mode, params)
+    draw_param_table(display, input_mode, params, track_num)
 }
 
 fn draw_param_table(
     display: &mut Display,
     input_mode: InputMode,
     params: &ParamList,
+    track_num: usize,
 ) -> DisplayResult {
     let is_track = match input_mode {
         InputMode::Track => true,
@@ -306,6 +315,24 @@ fn draw_param_table(
         Text::with_text_style(
             param.value_str().as_str(),
             value_point,
+            default_character_style(),
+            right_align(),
+        )
+        .draw(display)?;
+    }
+
+    // HACK HACK HACK
+    // track num isn't actually stored in a param, so here we just write the real track num over
+    // the top of whatever junk value came from the param.
+    if is_track {
+        let mut track_num_str: String<5> = String::new();
+        write!(track_num_str, "{}", track_num).unwrap();
+        Rectangle::new(Point::new(116, row0_y), Size::new(13, 6))
+            .into_styled(background_style())
+            .draw(display)?;
+        Text::with_text_style(
+            track_num_str.as_str(),
+            Point::new(DISPLAY_WIDTH, row0_y),
             default_character_style(),
             right_align(),
         )

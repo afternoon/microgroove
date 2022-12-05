@@ -37,7 +37,7 @@ pub mod positional_encoder {
                 Ok(Direction::None) => {
                     trace!("[PositionalEncoder::update] Direction::None");
                     None
-                },
+                }
                 Err(_error) => {
                     error!("[PositionalEncoder::update] could not update encoder");
                     None

@@ -103,10 +103,12 @@ pub fn time_division_from_id(id: &str) -> TimeDivision {
 pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
 
 /// Generate a sequence by piping the initial sequence through the set of configured machines.
-fn generate_sequence(length: u8, groove_machine: &dyn Machine, melody_machine: &dyn Machine) -> Sequence {
-    melody_machine.apply(
-        groove_machine.apply(
-            initial_sequence(length)))
+fn generate_sequence(
+    length: u8,
+    groove_machine: &dyn Machine,
+    melody_machine: &dyn Machine,
+) -> Sequence {
+    melody_machine.apply(groove_machine.apply(initial_sequence(length)))
 }
 
 fn initial_sequence(length: u8) -> Sequence {
@@ -250,6 +252,5 @@ mod test {
         t.apply_params();
         let expected: Sequence = (0..7).map(|_i| Some(Step::new(60))).collect();
         assert_eq!(expected, t.sequence);
-
     }
 }
