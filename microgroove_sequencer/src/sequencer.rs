@@ -91,8 +91,11 @@ impl Sequencer {
     }
 
     pub fn advance(&mut self, now_us: u64) -> Vec<ScheduledMidiMessage, MAX_MESSAGES_PER_TICK> {
-        let mut output_messages = Vec::new();
         let tick_duration = self.average_tick_duration(now_us);
+
+        let mut output_messages = Vec::new();
+
+        if !self.playing { return output_messages; }
 
         for track in &self.tracks {
             if let Some(track) = track {
@@ -149,7 +152,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sequencer_should_calculate_average_tick_duration_correctly() {
+    fn sequencer_should_start_stop_and_continue_playing() {
+        let mut sequencer = Sequencer::new();
+        assert_eq!(false, sequencer.is_playing());
+        assert_eq!(0, sequencer.tick);
+        sequencer.start_playing();
+        assert_eq!(true, sequencer.is_playing());
+
+        sequencer.advance(1);
+        sequencer.stop_playing();
+        assert_eq!(false, sequencer.is_playing());
+
+        sequencer.advance(1); // should be ignored because sequencer stopped
+        sequencer.continue_playing();
+        sequencer.advance(1);
+        assert_eq!(true, sequencer.is_playing());
+        assert_eq!(2, sequencer.tick);
+
+        sequencer.stop_playing();
+        assert_eq!(2, sequencer.tick);
+
+        sequencer.start_playing();
+        assert_eq!(true, sequencer.is_playing());
+        assert_eq!(0, sequencer.tick);
+    }
+
+    #[test]
+    fn sequencer_should_calculate_average_tick_duration() {
         let mut sequencer = Sequencer::new();
         let tick_duration = sequencer.average_tick_duration(0);
         assert_eq!(DEFAULT_TICK_DURATION_US, tick_duration.to_micros());
