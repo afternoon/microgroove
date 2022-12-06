@@ -131,7 +131,7 @@ impl Sequencer {
         let mut tick_duration = DEFAULT_TICK_DURATION_US.micros();
 
         if let Some(last_tick_instant_us) = self.last_tick_instant_us {
-            let last_tick_duration = last_tick_instant_us - now_us;
+            let last_tick_duration = now_us - last_tick_instant_us;
             self.midi_tick_history.write(last_tick_duration);
             tick_duration = (self.midi_tick_history.as_slice().iter().sum::<u64>()
                 / self.midi_tick_history.len() as u64)
@@ -141,5 +141,27 @@ impl Sequencer {
         self.last_tick_instant_us = Some(now_us);
 
         tick_duration
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sequencer_should_calculate_average_tick_duration_correctly() {
+        let mut sequencer = Sequencer::new();
+        let tick_duration = sequencer.average_tick_duration(0);
+        assert_eq!(DEFAULT_TICK_DURATION_US, tick_duration.to_micros());
+
+        let tick_duration = sequencer.average_tick_duration(100);
+        assert_eq!(100, tick_duration.to_micros());
+
+        sequencer.average_tick_duration(200);
+        sequencer.average_tick_duration(300);
+        sequencer.average_tick_duration(350);
+        sequencer.average_tick_duration(400);
+        let tick_duration = sequencer.average_tick_duration(450);
+        assert_eq!(75, tick_duration.to_micros());
     }
 }

@@ -29,8 +29,8 @@ pub fn map_encoder_input(
     if let InputMode::Track = input_mode {
         if let Some(track_num_increment) = encoder_values[TRACK_NUM_PARAM_INDEX] {
             let new_track_num = wrapping_add(
-                sequencer.current_track_num() as i32,
-                track_num_increment as i32 - 1,
+                sequencer.current_track_num() as i32 - 1,
+                track_num_increment as i32,
                 TRACK_COUNT as i32 - 1,
             );
             debug!("[map_encoder_input] new_track_num={}", new_track_num);
