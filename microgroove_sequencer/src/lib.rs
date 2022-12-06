@@ -12,7 +12,7 @@ use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
 use machines::{
-    machine_from_id, unitmachine::UnitMachine, Machine, GROOVE_MACHINE_IDS, MELODY_MACHINE_IDS,
+    machine_from_id, unit_machine::UnitMachine, Machine, GROOVE_MACHINE_IDS, MELODY_MACHINE_IDS,
 };
 use params::{EnumParam, NumberParam, ParamList};
 
