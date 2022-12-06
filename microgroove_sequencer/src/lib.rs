@@ -121,7 +121,7 @@ fn initial_sequence(length: u8) -> Sequence {
 fn track_params() -> ParamList {
     let mut params: ParamList = Vec::new();
     params
-        .push(Box::new(EnumParam::new("GROOVE", GROOVE_MACHINE_IDS)))
+        .push(Box::new(EnumParam::new("GROOVE", GROOVE_MACHINE_IDS, None)))
         .unwrap();
     params
         .push(Box::new(NumberParam::new(
@@ -140,10 +140,10 @@ fn track_params() -> ParamList {
         )))
         .unwrap();
     params
-        .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS)))
+        .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS, None)))
         .unwrap();
     params
-        .push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1")))
+        .push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1", Some("1/16"))))
         .unwrap();
     params
         .push(Box::new(NumberParam::new(
@@ -219,7 +219,7 @@ impl Default for Track {
         let sequence = generate_sequence(length, &groove_machine, &melody_machine);
         let params = track_params();
         Track {
-            time_division: TimeDivision::Sixteenth,
+            time_division: Default::default(),
             length,
             midi_channel: 0.into(),
             sequence,

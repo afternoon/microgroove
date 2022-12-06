@@ -86,15 +86,18 @@ pub struct EnumParam {
 /// implementation to the underlying data model. You should be careful to keep the list of options
 /// in sync with whatever values it relates to.
 impl EnumParam {
-    pub fn new(name: &str, options_space_separated: &str) -> EnumParam {
+    pub fn new(name: &str, options_space_separated: &str, initial: Option<&str>) -> EnumParam {
         let mut options = Options::new();
         for option_str in options_space_separated.split_ascii_whitespace() {
             options.push(option_str.into()).unwrap();
         }
+        let index = initial
+            .map(|initial| options.iter().position(|x| x == initial).unwrap_or_default())
+            .unwrap_or_default();
         EnumParam {
             name: name.into(),
             options,
-            index: 0,
+            index,
         }
     }
 }
@@ -138,7 +141,7 @@ mod tests {
 
     #[test]
     fn enum_param_should_calculate_small_increments_correctly() {
-        let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32");
+        let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32", None);
         assert_eq!("1", param.value_str());
         param.increment(1);
         assert_eq!("1/4", param.value_str());
@@ -152,11 +155,23 @@ mod tests {
 
     #[test]
     fn enum_param_should_calculate_large_increments_correctly() {
-        let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32");
+        let mut param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32", None);
         assert_eq!("1", param.value_str());
         param.increment(21);
         assert_eq!("1/4", param.value_str());
         param.increment(-21);
+        assert_eq!("1", param.value_str());
+    }
+
+    #[test]
+    fn enum_param_should_have_initial_value() {
+        let param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32", Some("1/16"));
+        assert_eq!("1/16", param.value_str());
+    }
+
+    #[test]
+    fn enum_param_should_ignore_invalid_initial_value() {
+        let param = EnumParam::new("TEST", "1 1/4 1/8 1/16 1/32", Some("XYZ"));
         assert_eq!("1", param.value_str());
     }
 }
