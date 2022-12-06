@@ -184,7 +184,7 @@ impl Track {
         self.melody_machine =
             Box::new(machine_from_id(self.params[3].value_str().as_str()).unwrap());
         self.time_division = time_division_from_id(self.params[4].value_str().as_str());
-        self.midi_channel = (self.params[5].value_i8().unwrap() as u8).into();
+        self.midi_channel = (self.params[5].value_i8().unwrap() as u8 - 1).into();
         self.generate_sequence();
     }
 

@@ -50,7 +50,7 @@ pub fn map_encoder_input(
             return;
         }
         let new_track = Track {
-            midi_channel: track_num.into(),
+            midi_channel: (track_num - 1).into(),
             ..Default::default()
         };
         let _ = maybe_track.insert(new_track);
