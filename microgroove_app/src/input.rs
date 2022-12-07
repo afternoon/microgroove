@@ -2,7 +2,7 @@ use crate::encoder::encoder_array::ENCODER_COUNT;
 use microgroove_sequencer::{params::wrapping_add, sequencer::Sequencer, Track, TRACK_COUNT};
 
 use core::iter::zip;
-use defmt::{debug, Format};
+use defmt::{debug, trace, Format};
 use heapless::Vec;
 
 type EncoderValues = Vec<Option<i8>, ENCODER_COUNT>;
@@ -25,7 +25,7 @@ pub fn map_encoder_input(
     encoder_values: EncoderValues,
 ) {
     // set the current track in the sequencer if track mode && track param has changed
-    debug!("[map_encoder_input] input_mode={}", input_mode);
+    trace!("[map_encoder_input] input_mode={}", input_mode);
     if let InputMode::Track = input_mode {
         if let Some(track_num_increment) = encoder_values[TRACK_NUM_PARAM_INDEX] {
             let new_track_num = wrapping_add(

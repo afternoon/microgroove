@@ -19,8 +19,10 @@ use params::{EnumParam, NumberParam, ParamList};
 pub const TRACK_COUNT: usize = 16;
 
 const TRACK_MIN_LENGTH: u8 = 1; // because live performance effect of repeating a single step
-const TRACK_MAX_LENGTH: usize = 32;
+const TRACK_MAX_LENGTH: u8 = 32;
 const TRACK_DEFAULT_LENGTH: u8 = 8; // because techno
+
+const SEQUENCE_MAX_STEPS: usize = TRACK_MAX_LENGTH as usize;
 
 const TRACK_MIN_NUM: i8 = 1;
 const TRACK_DEFAULT_NUM: i8 = 1;
@@ -103,7 +105,7 @@ pub fn time_division_from_id(id: &str) -> TimeDivision {
     }
 }
 
-pub type Sequence = Vec<Option<Step>, TRACK_MAX_LENGTH>;
+pub type Sequence = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
 
 /// Generate a sequence by piping the initial sequence through the set of configured machines.
 fn generate_sequence(
@@ -196,8 +198,8 @@ impl Track {
         tick % (self.time_division as u32) == 0
     }
 
-    pub fn step_num(&self, tick: u32) -> u32 {
-        tick / (self.time_division as u32) % self.length as u32
+    pub fn step_num(&self, tick: u32) -> u8 {
+        (tick / (self.time_division as u32) % self.length as u32) as u8
     }
 
     pub fn step_at_tick(&self, tick: u32) -> Option<&Step> {

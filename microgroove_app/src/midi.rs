@@ -1,4 +1,4 @@
-use defmt::{debug, trace};
+use defmt::trace;
 use midi_types::MidiMessage;
 
 pub fn log_message(message: &MidiMessage) {
@@ -11,7 +11,7 @@ pub fn log_message(message: &MidiMessage) {
             let midi_channel: u8 = (*midi_channel).into();
             let note: u8 = (*note).into();
             let velocity: u8 = (*velocity).into();
-            debug!(
+            trace!(
                 "[midi_send] note on midi_channel={} note={} velocity={}",
                 midi_channel, note, velocity
             );
@@ -19,7 +19,7 @@ pub fn log_message(message: &MidiMessage) {
         MidiMessage::NoteOff(midi_channel, note, _velocity) => {
             let midi_channel: u8 = (*midi_channel).into();
             let note: u8 = (*note).into();
-            debug!(
+            trace!(
                 "[midi_send] note off midi_channel={} note={}",
                 midi_channel, note
             );

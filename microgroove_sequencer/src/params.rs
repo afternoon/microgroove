@@ -15,7 +15,7 @@ pub trait Param: Debug + Send {
         "DISABLED"
     }
     fn increment(&mut self, n: i8);
-    fn value_str(&self) -> String<10>;
+    fn value_str(&self) -> String<6>;
     fn value_i8(&self) -> Option<i8> {
         None
     }
@@ -51,8 +51,8 @@ impl Param for NumberParam {
         self.name.as_str()
     }
 
-    fn value_str(&self) -> String<10> {
-        let mut val_string = String::<10>::new();
+    fn value_str(&self) -> String<6> {
+        let mut val_string = String::<6>::new();
         let _ = write!(val_string, "{}", self.val);
         val_string
     }
@@ -107,7 +107,7 @@ impl Param for EnumParam {
         self.name.as_str()
     }
 
-    fn value_str(&self) -> String<10> {
+    fn value_str(&self) -> String<6> {
         self.options[self.index].as_str().into()
     }
 

@@ -22,6 +22,7 @@ mod app {
     use defmt::{self, error, info, trace};
     use defmt_rtt as _;
     use fugit::MicrosDurationU64;
+    use heapless::String;
     use midi_types::MidiMessage;
     use nb::block;
     use rp_pico::hal::{
@@ -30,7 +31,7 @@ mod app {
     };
 
     use crate::{
-        display,
+        display::{self, PerformView},
         encoder::encoder_array::EncoderArray,
         input::{self, InputMode},
         midi,
@@ -118,7 +119,7 @@ mod app {
         read_encoders::spawn().expect("read_encoders::spawn should succeed");
 
         // start scheduled task to update display
-        render_perform_view::spawn().expect("render_perform_view::spawn should succeed");
+        update_display::spawn().expect("update_display::spawn should succeed");
 
         info!("[init] complete 🤘");
 
@@ -148,6 +149,9 @@ mod app {
         local = [midi_in]
     )]
     fn uart0_irq(mut ctx: uart0_irq::Context) {
+        let start = monotonics::now();
+        trace!("[uart0_irq] start");
+
         // read those sweet sweet midi bytes!
         // TODO do we need the block! here?
         if let Ok(message) = block!(ctx.local.midi_in.read()) {
@@ -192,6 +196,8 @@ mod app {
                 Err(_) => error!("could not spawn midi_send to pass through message"),
             }
         }
+
+        trace!("[uart0_irq] elapsed_time={}", (monotonics::now() - start).to_micros());
     }
 
     /// Send a MIDI message. Implemented as a task to allow cooperative multitasking with
@@ -218,7 +224,8 @@ mod app {
         local = [button_track_pin, button_groove_pin, button_melody_pin]
     )]
     fn io_irq_bank0(mut ctx: io_irq_bank0::Context) {
-        trace!("a wild gpio_bank0 interrupt has fired!");
+        let start = monotonics::now();
+        trace!("[io_irq_bank0] start");
 
         // for each button, check interrupt status to see if we fired
         if ctx.local.button_track_pin.interrupt_status(EdgeLow) {
@@ -242,6 +249,8 @@ mod app {
             });
             ctx.local.button_melody_pin.clear_interrupt(EdgeLow);
         }
+
+        trace!("[io_irq_bank0] elapsed_time={}", (monotonics::now() - start).to_micros());
     }
 
     /// Check encoders for position changes.
@@ -252,6 +261,9 @@ mod app {
         local = [encoders],
     )]
     fn read_encoders(ctx: read_encoders::Context) {
+        let start = monotonics::now();
+        trace!("[read_encoders] start");
+
         if let Some(_changes) = ctx.local.encoders.update() {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
                 input::map_encoder_input(*input_mode, sequencer, ctx.local.encoders.take_values());
@@ -260,31 +272,73 @@ mod app {
 
         // read again in 1ms
         read_encoders::spawn_after(ENCODER_READ_INTERVAL).unwrap();
+
+        trace!("[read_encoders] elapsed_time={}", (monotonics::now() - start).to_micros());
     }
 
-    // TODO we're locking all the shared state here, which blocks other tasks using that
-    // state from running. Does this create a performance issue?
+    /// Update the display by rendering a view object. This method creates an instance of a view,
+    /// passing in relevant data (which is copied). The view then takes care of rendering to the
+    /// display. Rendering is time-consuming, because writing data across I2C takes time. Hence the
+    /// work is offloaded to the `render_view` task, unlocking shared resources and allowing other
+    /// tasks to interrupt the rendering.
     #[task(
         priority = 1,
         shared = [input_mode, sequencer],
-        local = [display]
     )]
-    fn render_perform_view(ctx: render_perform_view::Context) {
+    fn update_display(ctx: update_display::Context) {
+        let start = monotonics::now();
+        trace!("[update_display] start");
+
         (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-            let track = sequencer.current_track();
-            display::render_perform_view(
-                ctx.local.display,
-                *input_mode,
-                sequencer.is_playing(),
-                track,
-                sequencer.current_track_num(),
-                sequencer.current_track_active_step_num(),
-            )
-            .unwrap();
+            let maybe_track = sequencer.current_track().as_ref();
+            let machine_name = match input_mode {
+                InputMode::Track => None,
+                InputMode::Groove => maybe_track.map(|track| String::<10>::from(track.groove_machine.name())),
+                InputMode::Melody => maybe_track.map(|track| String::<10>::from(track.melody_machine.name())),
+            };
+            let param_data = maybe_track.map(|track| {
+                let params = match input_mode {
+                    InputMode::Track => track.params(),
+                    InputMode::Groove => track.groove_machine.params(),
+                    InputMode::Melody => track.melody_machine.params(),
+
+                };
+                params.iter().map(|param| (String::<6>::from(param.name()), param.value_str())).collect()
+            });
+            let view = PerformView {
+                input_mode: *input_mode,
+                playing: sequencer.is_playing(),
+                sequence: maybe_track.map(|track| track.sequence.clone()),
+                track_num: sequencer.current_track_num(),
+                active_step_num: sequencer.current_track_active_step_num(),
+                machine_name,
+                param_data,
+            };
+
+            render_view::spawn(view)
+                .expect("should be able to spawn_after display_update");
+
         });
 
-        render_perform_view::spawn_after(DISPLAY_UPDATE_INTERVAL)
-            .expect("should be able to spawn_after display_update");
+        update_display::spawn_after(DISPLAY_UPDATE_INTERVAL)
+            .expect("should be able to spawn_after update_display");
+
+        trace!("[update_display] elapsed_time={}", (monotonics::now() - start).to_micros());
+    }
+
+    #[task(
+        priority = 1,
+        local = [display]
+    )]
+    fn render_view(ctx: render_view::Context, view: PerformView) {
+        let start = monotonics::now();
+        trace!("[render_view] start");
+
+        if let Err(_) = view.render(ctx.local.display) {
+            error!("PerformView::render error");
+        }
+
+        trace!("[render_view] elapsed_time={}", (monotonics::now() - start).to_micros());
     }
 
     // idle task needed because default RTIC idle task calls wfi(), which breaks rtt

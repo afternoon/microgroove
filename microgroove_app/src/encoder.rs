@@ -35,7 +35,6 @@ pub mod positional_encoder {
                     Some(self.value)
                 }
                 Ok(Direction::None) => {
-                    trace!("[PositionalEncoder::update] Direction::None");
                     None
                 }
                 Err(_error) => {

@@ -68,8 +68,8 @@ impl Sequencer {
         self.playing = true
     }
 
-    pub fn current_track_num(&self) -> usize {
-        self.current_track_num + 1
+    pub fn current_track_num(&self) -> u8 {
+        self.current_track_num as u8 + 1
     }
 
     pub fn current_track(&self) -> &Option<Track> {
@@ -80,7 +80,7 @@ impl Sequencer {
         self.tracks.get_mut(self.current_track_num).unwrap()
     }
 
-    pub fn current_track_active_step_num(&self) -> Option<u32> {
+    pub fn current_track_active_step_num(&self) -> Option<u8> {
         self.current_track()
             .as_ref()
             .map(|track| track.step_num(self.tick))
