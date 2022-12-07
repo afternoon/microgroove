@@ -145,7 +145,7 @@ fn track_params() -> ParamList {
         .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS, None)))
         .unwrap();
     params
-        .push(Box::new(EnumParam::new("SPD", "1/32 1/16 1/8 1/4 1", Some("1/16"))))
+        .push(Box::new(EnumParam::new("SPD", "1 1/4 1/8 1/16 1/32", Some("1/16"))))
         .unwrap();
     params
         .push(Box::new(NumberParam::new(
