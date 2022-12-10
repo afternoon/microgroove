@@ -25,6 +25,7 @@ mod app {
     use heapless::String;
     use midi_types::MidiMessage;
     use nb::block;
+    use rp2040_hal::rosc::RingOscillator;
     use rp_pico::hal::{
         gpio::Interrupt::EdgeLow,
         timer::{monotonic::Monotonic, Alarm0},
@@ -39,7 +40,7 @@ mod app {
             setup, ButtonGroovePin, ButtonMelodyPin, ButtonTrackPin, Display, MidiIn, MidiOut,
         },
     };
-    use microgroove_sequencer::sequencer::{ScheduledMidiMessage, Sequencer};
+    use microgroove_sequencer::{sequencer::{ScheduledMidiMessage, Sequencer}, machine::MachineResources};
 
     #[global_allocator]
     static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
@@ -58,6 +59,16 @@ mod app {
     /// Define RTIC monotonic timer. Also used for defmt.
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
     type TimerMonotonic = Monotonic<Alarm0>;
+
+    struct RpMachineResources {
+        rng: RingOscillator<Enabled>
+    }
+
+    impl MachineResources for RpMachineResources {
+        fn random_u64(&self) -> u64 {
+            self.rng.next_u64()
+        }
+    }
 
     /// RTIC shared resources.
     #[shared]
@@ -108,9 +119,11 @@ mod app {
         });
 
         // create a device wrapper instance and grab some of the peripherals we need
-        let (midi_in, midi_out, mut display, buttons, encoders, monotonic_timer) =
+        let (midi_in, midi_out, mut display, buttons, encoders, rng, monotonic_timer) =
             setup(ctx.device);
         let (button_track_pin, button_groove_pin, button_melody_pin) = buttons;
+
+        let machine_resources = RpMachineResources { rng };
 
         // show a splash screen for a bit
         display::render_splash_screen_view(&mut display).unwrap();
@@ -126,7 +139,7 @@ mod app {
         (
             Shared {
                 input_mode: Default::default(),
-                sequencer: Sequencer::new(),
+                sequencer: Sequencer::new(&machine_resources),
             },
             Local {
                 midi_in,
@@ -258,7 +271,7 @@ mod app {
     #[task(
         priority = 4,
         shared = [input_mode, sequencer],
-        local = [encoders],
+        local = [encoders, random_u64],
     )]
     fn read_encoders(ctx: read_encoders::Context) {
         let start = monotonics::now();
@@ -267,6 +280,9 @@ mod app {
         if let Some(_changes) = ctx.local.encoders.update() {
             (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
                 input::map_encoder_input(*input_mode, sequencer, ctx.local.encoders.take_values());
+                if let Some(track) = sequencer.current_track() {
+                    track.generate_sequence(ctx.local.random_u64);
+                }
             })
         }
 

@@ -3,7 +3,7 @@ use super::encoder::{encoder_array::EncoderArray, positional_encoder::Positional
 use embedded_midi;
 use fugit::{HertzU32, RateExtU32};
 use heapless::Vec;
-use rp2040_hal::clocks::PeripheralClock;
+use rp2040_hal::{clocks::PeripheralClock, rosc::Enabled};
 use rp_pico::{
     hal::{
         clocks::{self, Clock},
@@ -14,6 +14,7 @@ use rp_pico::{
             Pin, PullUpInput,
         },
         pac::{self, I2C1, RESETS, TIMER, UART0},
+        rosc::RingOscillator,
         sio::Sio,
         timer::{monotonic::Monotonic, Alarm0},
         uart::{DataBits, Reader, StopBits, UartConfig, UartPeripheral, Writer},
@@ -58,6 +59,7 @@ pub fn setup(
     Display,
     ButtonArray,
     EncoderArray,
+    RingOscillator<Enabled>,
     Monotonic<Alarm0>,
 ) {
     // setup gpio pins
@@ -138,12 +140,15 @@ pub fn setup(
         .unwrap();
     let encoders = EncoderArray::new(encoder_vec);
 
+    let rosc = RingOscillator::new(pac.ROSC).initialize();
+
     (
         midi_in,
         midi_out,
         display,
         buttons,
         encoders,
+        rosc,
         new_monotonic_timer(pac.TIMER, &mut pac.RESETS),
     )
 }

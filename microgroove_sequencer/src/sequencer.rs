@@ -4,7 +4,10 @@ use embedded_midi::MidiMessage;
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};
 
-use crate::{Track, TRACK_COUNT};
+use crate::{
+    machine::MachineResources,
+    Track, TRACK_COUNT
+};
 
 // TODO will cause issues if polyphony
 const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
@@ -20,8 +23,9 @@ pub enum ScheduledMidiMessage {
 const DEFAULT_BPM: u64 = 130;
 const DEFAULT_TICK_DURATION_US: u64 = (60 / DEFAULT_BPM) / 24;
 
-pub struct Sequencer {
-    pub tracks: Vec<Option<Track>, TRACK_COUNT>,
+pub struct Sequencer<'a> {
+    machine_resources: &'a dyn MachineResources,
+    pub tracks: Vec<Option<Track<'a>>, TRACK_COUNT>,
     current_track_num: usize,
     playing: bool,
     tick: u32,
@@ -29,12 +33,12 @@ pub struct Sequencer {
     midi_tick_history: HistoryBuffer<u64, MIDI_HISTORY_SAMPLE_COUNT>,
 }
 
-impl Sequencer {
-    pub fn new() -> Sequencer {
+impl<'a> Sequencer<'a> {
+    pub fn new(machine_resources: &'a dyn MachineResources) -> Sequencer {
         // create a set of empty tracks
         let mut tracks = Vec::new();
         tracks
-            .push(Some(Track::default()))
+            .push(Some(Track::new(machine_resources)))
             .expect("inserting track into tracks vector should succeed");
         for _ in 1..TRACK_COUNT {
             tracks
@@ -42,6 +46,7 @@ impl Sequencer {
                 .expect("inserting track into tracks vector should succeed");
         }
         Sequencer {
+            machine_resources,
             tracks,
             current_track_num: 0,
             playing: false,
@@ -72,11 +77,11 @@ impl Sequencer {
         self.current_track_num as u8 + 1
     }
 
-    pub fn current_track(&self) -> &Option<Track> {
+    pub fn current_track(&self) -> &Option<Track<'a>> {
         &self.tracks.get(self.current_track_num).unwrap()
     }
 
-    pub fn current_track_mut(&mut self) -> &mut Option<Track> {
+    pub fn current_track_mut(&mut self) -> &mut Option<Track<'a>> {
         self.tracks.get_mut(self.current_track_num).unwrap()
     }
 
@@ -95,7 +100,9 @@ impl Sequencer {
 
         let mut output_messages = Vec::new();
 
-        if !self.playing { return output_messages; }
+        if !self.playing {
+            return output_messages;
+        }
 
         for track in &self.tracks {
             if let Some(track) = track {
@@ -150,10 +157,12 @@ impl Sequencer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::machine::tests::TestMachineResources;
 
     #[test]
     fn sequencer_should_start_stop_and_continue_playing() {
-        let mut sequencer = Sequencer::new();
+        let machine_resources = TestMachineResources::default();
+        let mut sequencer = Sequencer::new(&machine_resources);
         assert_eq!(false, sequencer.is_playing());
         assert_eq!(0, sequencer.tick);
         sequencer.start_playing();
@@ -179,7 +188,8 @@ mod tests {
 
     #[test]
     fn sequencer_should_calculate_average_tick_duration() {
-        let mut sequencer = Sequencer::new();
+        let machine_resources = TestMachineResources::default();
+        let mut sequencer = Sequencer::new(&machine_resources);
         let tick_duration = sequencer.average_tick_duration(0);
         assert_eq!(DEFAULT_TICK_DURATION_US, tick_duration.to_micros());
 

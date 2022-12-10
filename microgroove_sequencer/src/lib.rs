@@ -1,20 +1,22 @@
 #![cfg_attr(not(test), no_std)]
 
-pub mod machines;
-pub mod params;
+pub mod machine;
+pub mod midi;
+pub mod param;
 pub mod sequencer;
 
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::cmp::Ordering;
+use core::{
+    cmp::Ordering,
+    fmt::{Display, Formatter, Result},
+};
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
-use machines::{
-    machine_from_id, unit_machine::UnitMachine, Machine, GROOVE_MACHINE_IDS, MELODY_MACHINE_IDS,
-};
-use params::{EnumParam, NumberParam, ParamList};
+use machine::{groove_machine_ids, machine_from_id, unit_machine::UnitMachine, Machine, melody_machine_ids, MachineResources};
+use param::{Param, ParamList, ParamValue};
 
 pub const TRACK_COUNT: usize = 16;
 
@@ -24,12 +26,10 @@ const TRACK_DEFAULT_LENGTH: u8 = 8; // because techno
 
 const SEQUENCE_MAX_STEPS: usize = TRACK_MAX_LENGTH as usize;
 
-const TRACK_MIN_NUM: i8 = 1;
-const TRACK_DEFAULT_NUM: i8 = 1;
+const TRACK_MIN_NUM: u8 = 1;
 
-const MIDI_MIN_CHANNEL: i8 = 1;
-const MIDI_MAX_CHANNEL: i8 = 16;
-const MIDI_DEFAULT_CHANNEL: i8 = 1;
+const MIDI_MIN_CHANNEL: u8 = 1;
+const MIDI_MAX_CHANNEL: u8 = 16;
 
 /// Represent a step in a musical sequence.
 #[derive(Clone, Debug)]
@@ -84,7 +84,7 @@ impl Ord for Step {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum TimeDivision {
     ThirtySecond = 3,
     #[default]
@@ -94,14 +94,45 @@ pub enum TimeDivision {
     Whole = 96,
 }
 
-pub fn time_division_from_id(id: &str) -> TimeDivision {
-    match id {
-        "1/32" => TimeDivision::ThirtySecond,
-        "1/16" => TimeDivision::Sixteenth,
-        "1/8" => TimeDivision::Eigth,
-        "1/4" => TimeDivision::Quarter,
-        "1" => TimeDivision::Whole,
-        _ => TimeDivision::Sixteenth,
+impl TimeDivision {
+    pub fn all_variants() -> Vec<TimeDivision, 5> {
+        Vec::from_slice(&[
+            TimeDivision::ThirtySecond,
+            TimeDivision::Sixteenth,
+            TimeDivision::Eigth,
+            TimeDivision::Quarter,
+            TimeDivision::Whole,
+        ])
+        .unwrap()
+    }
+
+    // TODO TryFrom
+    pub fn from_id(id: &str) -> TimeDivision {
+        match id {
+            "1/32" => TimeDivision::ThirtySecond,
+            "1/16" => TimeDivision::Sixteenth,
+            "1/8" => TimeDivision::Eigth,
+            "1/4" => TimeDivision::Quarter,
+            "1" => TimeDivision::Whole,
+            _ => TimeDivision::Sixteenth,
+        }
+    }
+}
+
+impl Display for TimeDivision {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(
+            f,
+            "{}",
+            // TODO impl Into<String> for TimeDivision
+            match *self {
+                TimeDivision::ThirtySecond => "1/32",
+                TimeDivision::Sixteenth => "1/16",
+                TimeDivision::Eigth => "1/8",
+                TimeDivision::Quarter => "1/4",
+                TimeDivision::Whole => "1",
+            }
+        )
     }
 }
 
@@ -123,53 +154,114 @@ fn initial_sequence(length: u8) -> Sequence {
 fn track_params() -> ParamList {
     let mut params: ParamList = Vec::new();
     params
-        .push(Box::new(EnumParam::new("GROOVE", GROOVE_MACHINE_IDS, None)))
+        .push(Box::new(
+            Param::new(
+                "GROOVE".into(),
+                ParamValue::GrooveMachine("UNIT".into()),
+                groove_machine_ids()
+                    .iter()
+                    .map(|id| ParamValue::GrooveMachine(id.clone()))
+                    .collect(),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     params
-        .push(Box::new(NumberParam::new(
-            "LEN",
-            TRACK_MIN_LENGTH as i8,
-            TRACK_MAX_LENGTH as i8,
-            TRACK_DEFAULT_LENGTH as i8,
-        )))
+        .push(Box::new(
+            Param::new(
+                "LEN".into(),
+                ParamValue::Number(TRACK_DEFAULT_LENGTH),
+                (TRACK_MIN_LENGTH..=TRACK_MAX_LENGTH)
+                    .map(ParamValue::Number)
+                    .collect(),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     params
-        .push(Box::new(NumberParam::new(
-            "TRACK",
-            TRACK_MIN_NUM,
-            TRACK_COUNT as i8,
-            TRACK_DEFAULT_NUM,
-        )))
+        .push(Box::new(
+            Param::new(
+                "TRACK".into(),
+                ParamValue::Number(TRACK_MIN_NUM),
+                (TRACK_MIN_NUM..=TRACK_COUNT as u8)
+                    .map(ParamValue::Number)
+                    .collect(),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     params
-        .push(Box::new(EnumParam::new("MELODY", MELODY_MACHINE_IDS, None)))
+        .push(Box::new(
+            Param::new(
+                "MELODY".into(),
+                ParamValue::MelodyMachine("UNIT".into()),
+                melody_machine_ids()
+                    .iter()
+                    .map(|id| ParamValue::MelodyMachine(id.clone()))
+                    .collect(),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     params
-        .push(Box::new(EnumParam::new("SPD", "1 1/4 1/8 1/16 1/32", Some("1/16"))))
+        .push(Box::new(
+            Param::new(
+                "SPD".into(),
+                ParamValue::TimeDivision(TimeDivision::Sixteenth),
+                TimeDivision::all_variants()
+                    .iter()
+                    .map(|&time_div| ParamValue::TimeDivision(time_div))
+                    .collect(),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     params
-        .push(Box::new(NumberParam::new(
-            "CHAN",
-            MIDI_MIN_CHANNEL,
-            MIDI_MAX_CHANNEL,
-            MIDI_DEFAULT_CHANNEL,
-        )))
+        .push(Box::new(
+            Param::new(
+                "CHAN".into(),
+                ParamValue::Number(MIDI_MIN_CHANNEL),
+                (MIDI_MIN_CHANNEL..=MIDI_MAX_CHANNEL)
+                    .map(ParamValue::Number)
+                    .collect(),
+            )
+            .unwrap(),
+        ))
         .unwrap();
     params
 }
 
 #[derive(Debug)]
-pub struct Track {
+pub struct Track<'a> {
+    machine_resources: &'a dyn MachineResources,
     pub time_division: TimeDivision,
     pub length: u8,
     pub midi_channel: Channel,
     pub sequence: Sequence,
-    pub groove_machine: Box<dyn Machine>,
-    pub melody_machine: Box<dyn Machine>,
+    pub groove_machine: Box<dyn Machine + 'a>,
+    pub melody_machine: Box<dyn Machine + 'a>,
     pub params: ParamList,
 }
 
-impl Track {
+impl<'a> Track<'a> {
+    fn new(machine_resources: &'a dyn MachineResources) -> Track<'a> {
+        let length = TRACK_DEFAULT_LENGTH;
+        let groove_machine = UnitMachine::new(machine_resources);
+        let melody_machine = UnitMachine::new(machine_resources);
+        let sequence = generate_sequence(length, &groove_machine, &melody_machine);
+        let params = track_params();
+        Track {
+            machine_resources,
+            time_division: Default::default(),
+            length,
+            midi_channel: 0.into(),
+            sequence,
+            groove_machine: Box::new(groove_machine),
+            melody_machine: Box::new(melody_machine),
+            params,
+        }
+    }
+
     pub fn params(&self) -> &ParamList {
         &self.params
     }
@@ -179,14 +271,39 @@ impl Track {
     }
 
     pub fn apply_params(&mut self) {
-        self.groove_machine =
-            Box::new(machine_from_id(self.params[0].value_str().as_str()).unwrap());
-        self.length = self.params[1].value_i8().unwrap() as u8;
+        match self.params[0].value() {
+            ParamValue::GrooveMachine(machine_id) => {
+                self.groove_machine = machine_from_id(machine_id.as_str(), self.machine_resources).unwrap();
+            }
+            unexpected => panic!("unexpected track param[0]: {:?}", unexpected)
+        };
+        match self.params[1].value() {
+            ParamValue::Number(length) => {
+                self.length = length;
+            }
+            unexpected => panic!("unexpected track param[1]: {:?}", unexpected)
+        };
+
         // params[2], track number, is intentionally ignored, its handled by Sequencer::set_current_track
-        self.melody_machine =
-            Box::new(machine_from_id(self.params[3].value_str().as_str()).unwrap());
-        self.time_division = time_division_from_id(self.params[4].value_str().as_str());
-        self.midi_channel = (self.params[5].value_i8().unwrap() as u8 - 1).into();
+
+        match self.params[3].value() {
+            ParamValue::MelodyMachine(machine_id) => {
+                self.melody_machine = machine_from_id(machine_id.as_str(), self.machine_resources).unwrap();
+            }
+            unexpected => panic!("unexpected track param[3]: {:?}", unexpected)
+        }
+        match self.params[4].value() {
+            ParamValue::TimeDivision(time_division) => {
+                self.time_division = time_division;
+            }
+            unexpected => panic!("unexpected track param[4]: {:?}", unexpected)
+        }
+        match self.params[5].value() {
+            ParamValue::Number(midi_channel) => {
+                self.midi_channel = midi_channel.into();
+            }
+            unexpected => panic!("unexpected track param[5]: {:?}", unexpected)
+        };
         self.generate_sequence();
     }
 
@@ -213,27 +330,10 @@ impl Track {
     }
 }
 
-impl Default for Track {
-    fn default() -> Track {
-        let length = TRACK_DEFAULT_LENGTH;
-        let groove_machine = UnitMachine::new();
-        let melody_machine = UnitMachine::new();
-        let sequence = generate_sequence(length, &groove_machine, &melody_machine);
-        let params = track_params();
-        Track {
-            time_division: Default::default(),
-            length,
-            midi_channel: 0.into(),
-            sequence,
-            groove_machine: Box::new(groove_machine),
-            melody_machine: Box::new(melody_machine),
-            params,
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
+    use crate::machine::tests::TestMachineResources;
+
     use super::*;
 
     #[test]
@@ -244,17 +344,18 @@ mod test {
 
     #[test]
     fn track_default_generates_sequence_correctly() {
-        let t = Track::default();
+        let machine_resources = TestMachineResources::default();
+        let t = Track::new(&machine_resources);
         let expected: Sequence = (0..8).map(|_i| Some(Step::new(60))).collect();
         assert_eq!(expected, t.sequence);
     }
 
     #[test]
     fn track_apply_params_generates_sequence_correctly() {
-        let mut t = Track::default();
-        t.params[1].increment(-1);
+        let machine_resources = TestMachineResources::default();
+        let mut t = Track::new(&machine_resources);
+        t.params[1].increment(-1); // track length
         t.apply_params();
-        let expected: Sequence = (0..7).map(|_i| Some(Step::new(60))).collect();
-        assert_eq!(expected, t.sequence);
+        assert_eq!(7, t.sequence.len());
     }
 }
