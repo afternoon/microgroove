@@ -1,11 +1,17 @@
 #![cfg_attr(not(test), no_std)]
 
 pub mod machine;
+pub mod machine_resources;
 pub mod midi;
 pub mod param;
+pub mod sequence_generator;
 pub mod sequencer;
 
 extern crate alloc;
+
+use machine::{groove_machine_ids, melody_machine_ids};
+use param::{Param, ParamList, ParamValue};
+use sequence_generator::SequenceGenerator;
 
 use alloc::boxed::Box;
 use core::{
@@ -14,9 +20,6 @@ use core::{
 };
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
-
-use machine::{groove_machine_ids, machine_from_id, unit_machine::UnitMachine, Machine, melody_machine_ids, MachineResources};
-use param::{Param, ParamList, ParamValue};
 
 pub const TRACK_COUNT: usize = 16;
 
@@ -138,19 +141,6 @@ impl Display for TimeDivision {
 
 pub type Sequence = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
 
-/// Generate a sequence by piping the initial sequence through the set of configured machines.
-fn generate_sequence(
-    length: u8,
-    groove_machine: &dyn Machine,
-    melody_machine: &dyn Machine,
-) -> Sequence {
-    melody_machine.apply(groove_machine.apply(initial_sequence(length)))
-}
-
-fn initial_sequence(length: u8) -> Sequence {
-    (0..length).map(|_i| Some(Step::new(60))).collect()
-}
-
 fn track_params() -> ParamList {
     let mut params: ParamList = Vec::new();
     params
@@ -232,36 +222,30 @@ fn track_params() -> ParamList {
 }
 
 #[derive(Debug)]
-pub struct Track<'a> {
-    machine_resources: &'a dyn MachineResources,
+pub struct Track {
     pub time_division: TimeDivision,
     pub length: u8,
     pub midi_channel: Channel,
     pub sequence: Sequence,
-    pub groove_machine: Box<dyn Machine + 'a>,
-    pub melody_machine: Box<dyn Machine + 'a>,
     pub params: ParamList,
 }
 
-impl<'a> Track<'a> {
-    fn new(machine_resources: &'a dyn MachineResources) -> Track<'a> {
+impl Default for Track {
+    fn default() -> Track {
         let length = TRACK_DEFAULT_LENGTH;
-        let groove_machine = UnitMachine::new(machine_resources);
-        let melody_machine = UnitMachine::new(machine_resources);
-        let sequence = generate_sequence(length, &groove_machine, &melody_machine);
+        let sequence = SequenceGenerator::initial_sequence(length);
         let params = track_params();
         Track {
-            machine_resources,
             time_division: Default::default(),
             length,
             midi_channel: 0.into(),
             sequence,
-            groove_machine: Box::new(groove_machine),
-            melody_machine: Box::new(melody_machine),
             params,
         }
     }
+}
 
+impl Track {
     pub fn params(&self) -> &ParamList {
         &self.params
     }
@@ -271,44 +255,29 @@ impl<'a> Track<'a> {
     }
 
     pub fn apply_params(&mut self) {
-        match self.params[0].value() {
-            ParamValue::GrooveMachine(machine_id) => {
-                self.groove_machine = machine_from_id(machine_id.as_str(), self.machine_resources).unwrap();
-            }
-            unexpected => panic!("unexpected track param[0]: {:?}", unexpected)
-        };
+        // params 0 (groove machine), 2 (track number) and 3 (melody machine) are intentionally ignored
+        // they are "virtual parameters" which don't actually relate to a `Track` at all. They're
+        // andled by microgroove_app::input::map_encoder_values directly.
+
         match self.params[1].value() {
             ParamValue::Number(length) => {
                 self.length = length;
             }
-            unexpected => panic!("unexpected track param[1]: {:?}", unexpected)
+            unexpected => panic!("unexpected track param[1]: {:?}", unexpected),
         };
 
-        // params[2], track number, is intentionally ignored, its handled by Sequencer::set_current_track
-
-        match self.params[3].value() {
-            ParamValue::MelodyMachine(machine_id) => {
-                self.melody_machine = machine_from_id(machine_id.as_str(), self.machine_resources).unwrap();
-            }
-            unexpected => panic!("unexpected track param[3]: {:?}", unexpected)
-        }
         match self.params[4].value() {
             ParamValue::TimeDivision(time_division) => {
                 self.time_division = time_division;
             }
-            unexpected => panic!("unexpected track param[4]: {:?}", unexpected)
+            unexpected => panic!("unexpected track param[4]: {:?}", unexpected),
         }
         match self.params[5].value() {
             ParamValue::Number(midi_channel) => {
                 self.midi_channel = midi_channel.into();
             }
-            unexpected => panic!("unexpected track param[5]: {:?}", unexpected)
+            unexpected => panic!("unexpected track param[5]: {:?}", unexpected),
         };
-        self.generate_sequence();
-    }
-
-    pub fn generate_sequence(&mut self) {
-        self.sequence = generate_sequence(self.length, &*self.groove_machine, &*self.melody_machine)
     }
 
     pub fn should_play_on_tick(&self, tick: u32) -> bool {
@@ -331,9 +300,7 @@ impl<'a> Track<'a> {
 }
 
 #[cfg(test)]
-mod test {
-    use crate::machine::tests::TestMachineResources;
-
+mod tests {
     use super::*;
 
     #[test]
@@ -344,18 +311,8 @@ mod test {
 
     #[test]
     fn track_default_generates_sequence_correctly() {
-        let machine_resources = TestMachineResources::default();
-        let t = Track::new(&machine_resources);
+        let t = Track::default();
         let expected: Sequence = (0..8).map(|_i| Some(Step::new(60))).collect();
         assert_eq!(expected, t.sequence);
-    }
-
-    #[test]
-    fn track_apply_params_generates_sequence_correctly() {
-        let machine_resources = TestMachineResources::default();
-        let mut t = Track::new(&machine_resources);
-        t.params[1].increment(-1); // track length
-        t.apply_params();
-        assert_eq!(7, t.sequence.len());
     }
 }

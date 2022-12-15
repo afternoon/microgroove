@@ -1,8 +1,14 @@
 use crate::encoder::encoder_array::ENCODER_COUNT;
-use microgroove_sequencer::{params::wrapping_add, sequencer::Sequencer, Track, TRACK_COUNT};
+use microgroove_sequencer::{
+    Track, TRACK_COUNT,
+    param::{wrapping_add, ParamValue, ParamList},
+    sequencer::Sequencer,
+    machine_resources::MachineResources,
+    sequence_generator::SequenceGenerator, machine::machine_from_id,
+};
 
 use core::iter::zip;
-use defmt::{debug, trace, Format};
+use defmt::{debug, Format};
 use heapless::Vec;
 
 type EncoderValues = Vec<Option<i8>, ENCODER_COUNT>;
@@ -19,76 +25,105 @@ pub enum InputMode {
 
 /// Iterate over `encoder_values` and pass to either `Track`, groove `Machine` or
 /// melody `Machine`, determined by `input_mode`.
-pub fn map_encoder_input(
-    input_mode: InputMode,
-    sequencer: &mut Sequencer,
+pub fn apply_encoder_values(
     encoder_values: EncoderValues,
+    input_mode: InputMode,
+    current_track: &mut u8,
+    sequencer: &mut Sequencer,
+    sequence_generators: &mut Vec<SequenceGenerator, TRACK_COUNT>,
+    machine_resources: &mut MachineResources,
 ) {
-    // set the current track in the sequencer if track mode && track param has changed
-    trace!("[map_encoder_input] input_mode={}", input_mode);
-    if let InputMode::Track = input_mode {
-        if let Some(track_num_increment) = encoder_values[TRACK_NUM_PARAM_INDEX] {
-            let new_track_num = wrapping_add(
-                sequencer.current_track_num() as i32 - 1,
-                track_num_increment as i32,
-                TRACK_COUNT as i32 - 1,
-            );
-            debug!("[map_encoder_input] new_track_num={}", new_track_num);
-            sequencer.set_current_track(new_track_num as u8);
+    if track_num_has_changed(input_mode, &encoder_values) {
+        update_current_track(&encoder_values, current_track);
+        return;
+    }
+    if track_disabled(sequencer, current_track) {
+        enable_track(sequencer, current_track);
+        return;
+    }
+    let generator = sequence_generators.get_mut(*current_track as usize).unwrap();
+    match input_mode {
+        InputMode::Track => {
+            let track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut().unwrap();
+            let params = track.params_mut();
+            update_params(&encoder_values, params);
+            update_machines(params, generator);
+            track.apply_params();
+        }
+        InputMode::Groove => {
+            update_params(&encoder_values, generator.groove_machine.params_mut());
+        }
+        InputMode::Melody => {
+            update_params(&encoder_values, generator.melody_machine.params_mut());
         }
     }
+    update_sequence(sequencer, current_track, generator, machine_resources);
+}
 
-    // make sure we have the latest track num
-    let track_num = sequencer.current_track_num() as u8;
-
-    // The current track might be disabled (None in the sequencer's `Vec` of tracks). If the user
-    // browses through tracks using the track num encoder on the track page, then we do nothing
-    // more here. Any other encoder input triggers the creation of a new track in the current slot.
-    let maybe_track = sequencer.current_track_mut();
-    if let None = maybe_track {
-        if only_track_num_has_changed(input_mode, &encoder_values) {
-            return;
-        }
-        let new_track = Track {
-            midi_channel: (track_num - 1).into(),
-            ..Default::default()
-        };
-        let _ = maybe_track.insert(new_track);
+fn update_current_track(encoder_values: &EncoderValues, current_track: &mut u8) {
+    if let Some(track_num_increment) = encoder_values[TRACK_NUM_PARAM_INDEX] {
+        let new_track_num = wrapping_add(
+            *current_track as i32,
+            track_num_increment as i32,
+            TRACK_COUNT as i32 - 1,
+        ) as u8;
+        debug!("[map_encoder_input] current_track={}", new_track_num);
+        *current_track = new_track_num;
     }
+}
 
-    // get &mut to the relevant set of params
-    let track = maybe_track.as_mut().unwrap();
-    let params_mut = match input_mode {
-        InputMode::Track => track.params_mut(),
-        InputMode::Groove => track.groove_machine.params_mut(),
-        InputMode::Melody => track.melody_machine.params_mut(),
-    };
+fn track_num_has_changed(input_mode: InputMode, encoder_values: &EncoderValues) -> bool {
+    match input_mode {
+        InputMode::Track => match encoder_values.as_slice() {
+            [_, _, Some(_), _, _, _] => true,
+            _ => false,
+        },
+        _ => false,
+    }
+}
 
-    // update params
-    let params_and_values = zip(params_mut, encoder_values);
-    for (param, value) in params_and_values {
+fn track_disabled(sequencer: &Sequencer, track_num: &u8) -> bool {
+    sequencer.tracks.get(*track_num as usize).unwrap().is_none()
+}
+
+fn enable_track(sequencer: &mut Sequencer, track_num: &u8) {
+    let mut new_track = Track::default();
+    new_track.midi_channel = (*track_num).into();
+    new_track.sequence = SequenceGenerator::initial_sequence(new_track.length);
+    let _ = sequencer.enable_track(*track_num, new_track);
+}
+
+fn update_params(encoder_values: &EncoderValues, params: &mut ParamList) {
+    let params_and_values = zip(params.iter_mut(), encoder_values);
+    for (param, &value) in params_and_values {
         if let Some(value) = value {
             debug!(
                 "[map_encoder_input] increment param={}, value={}",
                 param.name(),
                 value
             );
-            param.increment(value);
+            param.increment(value.into());
         }
-    }
-
-    // write param data back to track member variables
-    if let InputMode::Track = input_mode {
-        track.apply_params();
     }
 }
 
-fn only_track_num_has_changed(input_mode: InputMode, encoder_values: &EncoderValues) -> bool {
-    match input_mode {
-        InputMode::Track => match encoder_values.as_slice() {
-            [None, None, Some(_), None, None, None] => true,
-            _ => false,
-        },
-        _ => false,
+fn update_machines(params_mut: &mut ParamList, generator: &mut SequenceGenerator) {
+    match params_mut[0].value() {
+        ParamValue::GrooveMachine(machine_id) => {
+            generator.groove_machine = machine_from_id(machine_id.as_str()).unwrap();
+        }
+        unexpected => panic!("unexpected groove machine param: {:?}", unexpected)
+    };
+    match params_mut[3].value() {
+        ParamValue::MelodyMachine(machine_id) => {
+            generator.melody_machine = machine_from_id(machine_id.as_str()).unwrap();
+        }
+        unexpected => panic!("unexpected melody machine param: {:?}", unexpected)
     }
+}
+
+fn update_sequence(sequencer: &mut Sequencer, track_num: &u8, generator: &SequenceGenerator, machine_resources: &mut MachineResources) {
+    let track = sequencer.tracks.get_mut(*track_num as usize).unwrap().as_mut().unwrap();
+    let new_sequence = generator.generate(track.length, machine_resources);
+    track.sequence = new_sequence;
 }

@@ -127,7 +127,7 @@ impl PerformView {
             InputMode::Track => { /* don't do nuffink */ }
             InputMode::Groove | InputMode::Melody => {
                 Text::with_text_style(
-                    self.machine_name.as_ref().unwrap().as_str(),
+                    self.machine_name.as_ref().map(|s| s.as_str()).unwrap_or(""),
                     Point::new(DISPLAY_WIDTH, 0),
                     default_character_style(),
                     right_align(),

@@ -110,6 +110,7 @@ pub fn setup(
     button_melody_pin.set_interrupt_enabled(EdgeLow, true);
     let buttons = (button_track_pin, button_groove_pin, button_melody_pin);
 
+    // setup encoders
     let mut encoder_vec = Vec::new();
     encoder_vec
         .push(PositionalEncoder::new(
@@ -140,6 +141,7 @@ pub fn setup(
         .unwrap();
     let encoders = EncoderArray::new(encoder_vec);
 
+    // create a ring oscillator for random-number generation
     let rosc = RingOscillator::new(pac.ROSC).initialize();
 
     (

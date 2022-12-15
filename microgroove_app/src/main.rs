@@ -19,13 +19,13 @@ use panic_probe as _;
 )]
 mod app {
     use alloc_cortex_m::CortexMHeap;
+    use core::fmt::Write;
     use defmt::{self, error, info, trace};
     use defmt_rtt as _;
     use fugit::MicrosDurationU64;
-    use heapless::String;
+    use heapless::{String, Vec};
     use midi_types::MidiMessage;
     use nb::block;
-    use rp2040_hal::rosc::RingOscillator;
     use rp_pico::hal::{
         gpio::Interrupt::EdgeLow,
         timer::{monotonic::Monotonic, Alarm0},
@@ -40,11 +40,16 @@ mod app {
             setup, ButtonGroovePin, ButtonMelodyPin, ButtonTrackPin, Display, MidiIn, MidiOut,
         },
     };
-    use microgroove_sequencer::{sequencer::{ScheduledMidiMessage, Sequencer}, machine::MachineResources};
+    use microgroove_sequencer::{
+        Track, TRACK_COUNT,
+        machine_resources::MachineResources,
+        sequence_generator::SequenceGenerator,
+        sequencer::{ScheduledMidiMessage, Sequencer},
+    };
 
     #[global_allocator]
     static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
-    const HEAP_SIZE_BYTES: usize = 16 * 1024; // 16KB!
+    const HEAP_SIZE_BYTES: usize = 8 * 1024;
 
     // time between each display render
     // this is the practical upper bound for drawing and flushing a frame to the oled
@@ -60,24 +65,19 @@ mod app {
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
     type TimerMonotonic = Monotonic<Alarm0>;
 
-    struct RpMachineResources {
-        rng: RingOscillator<Enabled>
-    }
-
-    impl MachineResources for RpMachineResources {
-        fn random_u64(&self) -> u64 {
-            self.rng.next_u64()
-        }
-    }
-
     /// RTIC shared resources.
     #[shared]
     struct Shared {
+        current_track: u8,
+
         /// Sequencer big-ball-of-state
         sequencer: Sequencer,
 
         /// Current page of the UI.
         input_mode: InputMode,
+
+        // set of SequenceGenerators, one for each `Track` in `Sequencer`
+        sequence_generators: Vec<SequenceGenerator, TRACK_COUNT>,
     }
 
     /// RTIC local resources.
@@ -103,6 +103,9 @@ mod app {
 
         // encoders
         encoders: EncoderArray,
+
+        // context object for machines to use in sequence generation
+        machine_resources: MachineResources,
     }
 
     /// RTIC init method sets up the hardware and initialises shared and local resources.
@@ -119,11 +122,24 @@ mod app {
         });
 
         // create a device wrapper instance and grab some of the peripherals we need
-        let (midi_in, midi_out, mut display, buttons, encoders, rng, monotonic_timer) =
+        let (midi_in, midi_out, mut display, buttons, encoders, rosc, monotonic_timer) =
             setup(ctx.device);
         let (button_track_pin, button_groove_pin, button_melody_pin) = buttons;
 
-        let machine_resources = RpMachineResources { rng };
+        // create a vec of `SequenceGenerator`s, we'll use these to generate sequences for our
+        // tracks.
+        let mut sequence_generators: Vec<SequenceGenerator, TRACK_COUNT> = Vec::new();
+        for _i in 0..TRACK_COUNT {
+            sequence_generators.push(SequenceGenerator::default()).unwrap();
+        }
+
+        // create a new sequencer and build the first track
+        let mut sequencer = Sequencer::default();
+        let generator = SequenceGenerator::default();
+        let mut machine_resources = MachineResources::new(rosc);
+        let mut new_track = Track::default();
+        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        sequencer.enable_track(0, new_track);
 
         // show a splash screen for a bit
         display::render_splash_screen_view(&mut display).unwrap();
@@ -139,7 +155,9 @@ mod app {
         (
             Shared {
                 input_mode: Default::default(),
-                sequencer: Sequencer::new(&machine_resources),
+                current_track: 0,
+                sequencer,
+                sequence_generators,
             },
             Local {
                 midi_in,
@@ -149,6 +167,7 @@ mod app {
                 button_groove_pin,
                 button_melody_pin,
                 encoders,
+                machine_resources,
             },
             init::Monotonics(monotonic_timer),
         )
@@ -270,19 +289,23 @@ mod app {
     /// Reading every 1ms removes some of the noise vs reading on each interrupt.
     #[task(
         priority = 4,
-        shared = [input_mode, sequencer],
-        local = [encoders, random_u64],
+        shared = [input_mode, current_track, sequencer, sequence_generators],
+        local = [encoders, machine_resources],
     )]
     fn read_encoders(ctx: read_encoders::Context) {
         let start = monotonics::now();
         trace!("[read_encoders] start");
 
         if let Some(_changes) = ctx.local.encoders.update() {
-            (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-                input::map_encoder_input(*input_mode, sequencer, ctx.local.encoders.take_values());
-                if let Some(track) = sequencer.current_track() {
-                    track.generate_sequence(ctx.local.random_u64);
-                }
+            (ctx.shared.input_mode, ctx.shared.current_track, ctx.shared.sequencer, ctx.shared.sequence_generators).lock(|input_mode, current_track, sequencer, sequence_generators| {
+                input::apply_encoder_values(
+                    ctx.local.encoders.take_values(),
+                    *input_mode,
+                    current_track,
+                    sequencer,
+                    sequence_generators,
+                    ctx.local.machine_resources,
+                );
             })
         }
 
@@ -294,41 +317,59 @@ mod app {
 
     /// Update the display by rendering a view object. This method creates an instance of a view,
     /// passing in relevant data (which is copied). The view then takes care of rendering to the
-    /// display. Rendering is time-consuming, because writing data across I2C takes time. Hence the
+    /// display. Rendering is time-consuming, because writing data across I2C is slow. Hence the
     /// work is offloaded to the `render_view` task, unlocking shared resources and allowing other
     /// tasks to interrupt the rendering.
     #[task(
         priority = 1,
-        shared = [input_mode, sequencer],
+        shared = [input_mode, current_track, sequencer, sequence_generators],
     )]
     fn update_display(ctx: update_display::Context) {
         let start = monotonics::now();
         trace!("[update_display] start");
 
-        (ctx.shared.input_mode, ctx.shared.sequencer).lock(|input_mode, sequencer| {
-            let maybe_track = sequencer.current_track().as_ref();
-            let machine_name = match input_mode {
-                InputMode::Track => None,
-                InputMode::Groove => maybe_track.map(|track| String::<10>::from(track.groove_machine.name())),
-                InputMode::Melody => maybe_track.map(|track| String::<10>::from(track.melody_machine.name())),
-            };
-            let param_data = maybe_track.map(|track| {
-                let params = match input_mode {
-                    InputMode::Track => track.params(),
-                    InputMode::Groove => track.groove_machine.params(),
-                    InputMode::Melody => track.melody_machine.params(),
+        (ctx.shared.input_mode, ctx.shared.current_track, ctx.shared.sequencer, ctx.shared.sequence_generators).lock(|input_mode, current_track, sequencer, sequence_generators| {
+            let maybe_track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut();
+            let view = match maybe_track {
+                Some(track) => {
+                    let sequence = Some(track.sequence.clone());
+                    let active_step_num = Some(track.step_num(sequencer.tick));
+                    let generator = sequence_generators.get(*current_track as usize).unwrap();
+                    let machine_name = match input_mode {
+                        InputMode::Track => None,
+                        InputMode::Groove => Some(String::<10>::from(generator.groove_machine.name())),
+                        InputMode::Melody => Some(String::<10>::from(generator.melody_machine.name())),
+                    };
+                    let params = match input_mode {
+                        InputMode::Track => track.params(),
+                        InputMode::Groove => generator.groove_machine.params(),
+                        InputMode::Melody => generator.melody_machine.params(),
 
-                };
-                params.iter().map(|param| (String::<6>::from(param.name()), param.value_str())).collect()
-            });
-            let view = PerformView {
-                input_mode: *input_mode,
-                playing: sequencer.is_playing(),
-                sequence: maybe_track.map(|track| track.sequence.clone()),
-                track_num: sequencer.current_track_num(),
-                active_step_num: sequencer.current_track_active_step_num(),
-                machine_name,
-                param_data,
+                    };
+                    let param_data = Some(params.iter().map(|param| {
+                        let mut value_string = String::new();
+                        write!(value_string, "{}", param.value()).unwrap();
+                        (String::<6>::from(param.name()), value_string)
+                    }).collect());
+                    PerformView {
+                        input_mode: *input_mode,
+                        playing: sequencer.is_playing(),
+                        sequence,
+                        track_num: *current_track,
+                        active_step_num,
+                        machine_name,
+                        param_data,
+                    }
+                }
+                None => PerformView {
+                    input_mode: *input_mode,
+                    playing: sequencer.is_playing(),
+                    sequence: None,
+                    track_num: *current_track,
+                    active_step_num: None,
+                    machine_name: None,
+                    param_data: None,
+                }
             };
 
             render_view::spawn(view)
@@ -370,7 +411,6 @@ mod app {
     #[alloc_error_handler]
     fn alloc_error(_layout: core::alloc::Layout) -> ! {
         error!("TICK TICK TICK TICK OOM!");
-        cortex_m::asm::bkpt();
-        loop {}
+        panic!("TICK TICK TICK TICK OOM!");
     }
 }
