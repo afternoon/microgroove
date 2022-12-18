@@ -9,19 +9,18 @@ pub mod sequencer;
 
 extern crate alloc;
 
-use machine::{groove_machine_ids, melody_machine_ids};
 use param::{Param, ParamList, ParamValue};
 use sequence_generator::SequenceGenerator;
 
 use alloc::boxed::Box;
 use core::{
     cmp::Ordering,
-    fmt::{Display, Formatter, Result},
+    fmt::{Display, Formatter, Result as FmtResult},
 };
 use heapless::Vec;
 use midi_types::{Channel, Note, Value14, Value7};
 
-pub const TRACK_COUNT: usize = 16;
+pub const TRACK_COUNT: usize = 8;
 
 const TRACK_MIN_LENGTH: u8 = 1; // because live performance effect of repeating a single step
 const TRACK_MAX_LENGTH: u8 = 32;
@@ -89,12 +88,12 @@ impl Ord for Step {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum TimeDivision {
-    ThirtySecond = 3,
+    ThirtySecond,
     #[default]
-    Sixteenth = 6,
-    Eigth = 12,
-    Quarter = 24,
-    Whole = 96,
+    Sixteenth,
+    Eigth,
+    Quarter,
+    Whole,
 }
 
 impl TimeDivision {
@@ -120,10 +119,20 @@ impl TimeDivision {
             _ => TimeDivision::Sixteenth,
         }
     }
+
+    pub fn division_length_24ppqn(time_div: TimeDivision) -> u8 {
+        match time_div {
+            TimeDivision::ThirtySecond => 3,
+            TimeDivision::Sixteenth => 6,
+            TimeDivision::Eigth => 12,
+            TimeDivision::Quarter => 24,
+            TimeDivision::Whole => 96,
+        }
+    }
 }
 
 impl Display for TimeDivision {
-    fn fmt(&self, f: &mut Formatter) -> Result {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(
             f,
             "{}",
@@ -139,85 +148,31 @@ impl Display for TimeDivision {
     }
 }
 
+impl TryFrom<u8> for TimeDivision {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(TimeDivision::ThirtySecond),
+            1 => Ok(TimeDivision::Sixteenth),
+            2 => Ok(TimeDivision::Eigth),
+            3 => Ok(TimeDivision::Quarter),
+            4 => Ok(TimeDivision::Whole),
+            _ => Err(()),
+        }
+    }
+}
+
 pub type Sequence = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
 
 fn track_params() -> ParamList {
     let mut params: ParamList = Vec::new();
-    params
-        .push(Box::new(
-            Param::new(
-                "GROOVE".into(),
-                ParamValue::GrooveMachine("UNIT".into()),
-                groove_machine_ids()
-                    .iter()
-                    .map(|id| ParamValue::GrooveMachine(id.clone()))
-                    .collect(),
-            )
-            .unwrap(),
-        ))
-        .unwrap();
-    params
-        .push(Box::new(
-            Param::new(
-                "LEN".into(),
-                ParamValue::Number(TRACK_DEFAULT_LENGTH),
-                (TRACK_MIN_LENGTH..=TRACK_MAX_LENGTH)
-                    .map(ParamValue::Number)
-                    .collect(),
-            )
-            .unwrap(),
-        ))
-        .unwrap();
-    params
-        .push(Box::new(
-            Param::new(
-                "TRACK".into(),
-                ParamValue::Number(TRACK_MIN_NUM),
-                (TRACK_MIN_NUM..=TRACK_COUNT as u8)
-                    .map(ParamValue::Number)
-                    .collect(),
-            )
-            .unwrap(),
-        ))
-        .unwrap();
-    params
-        .push(Box::new(
-            Param::new(
-                "MELODY".into(),
-                ParamValue::MelodyMachine("UNIT".into()),
-                melody_machine_ids()
-                    .iter()
-                    .map(|id| ParamValue::MelodyMachine(id.clone()))
-                    .collect(),
-            )
-            .unwrap(),
-        ))
-        .unwrap();
-    params
-        .push(Box::new(
-            Param::new(
-                "SPD".into(),
-                ParamValue::TimeDivision(TimeDivision::Sixteenth),
-                TimeDivision::all_variants()
-                    .iter()
-                    .map(|&time_div| ParamValue::TimeDivision(time_div))
-                    .collect(),
-            )
-            .unwrap(),
-        ))
-        .unwrap();
-    params
-        .push(Box::new(
-            Param::new(
-                "CHAN".into(),
-                ParamValue::Number(MIDI_MIN_CHANNEL),
-                (MIDI_MIN_CHANNEL..=MIDI_MAX_CHANNEL)
-                    .map(ParamValue::Number)
-                    .collect(),
-            )
-            .unwrap(),
-        ))
-        .unwrap();
+    params.push(Box::new(Param::new_groove_machine_id_param("GROOVE"))).unwrap();
+    params.push(Box::new(Param::new_number_param("LEN", TRACK_MIN_LENGTH, TRACK_MAX_LENGTH, TRACK_DEFAULT_LENGTH))).unwrap();
+    params.push(Box::new(Param::new_number_param("TRACK", TRACK_MIN_NUM, TRACK_COUNT as u8, TRACK_MIN_NUM))).unwrap();
+    params.push(Box::new(Param::new_melody_machine_id_param("MELODY"))).unwrap();
+    params.push(Box::new(Param::new_time_division_param("SPD"))).unwrap();
+    params.push(Box::new(Param::new_number_param("CHAN", MIDI_MIN_CHANNEL, MIDI_MAX_CHANNEL, MIDI_MIN_CHANNEL))).unwrap();
     params
 }
 
@@ -281,11 +236,11 @@ impl Track {
     }
 
     pub fn should_play_on_tick(&self, tick: u32) -> bool {
-        tick % (self.time_division as u32) == 0
+        tick % (TimeDivision::division_length_24ppqn(self.time_division) as u32) == 0
     }
 
     pub fn step_num(&self, tick: u32) -> u8 {
-        (tick / (self.time_division as u32) % self.length as u32) as u8
+        (tick / (TimeDivision::division_length_24ppqn(self.time_division) as u32) % self.length as u32) as u8
     }
 
     pub fn step_at_tick(&self, tick: u32) -> Option<&Step> {

@@ -49,29 +49,8 @@ impl RandMelodyMachine {
     pub fn new() -> RandMelodyMachine {
         let sequence_processor = RandMelodyProcessor::new();
         let mut params = ParamList::new();
-        params
-            .push(Box::new(
-                Param::new(
-                    "ROOT".into(),
-                    ParamValue::Note(Note::C3),
-                    Note::all_variants()
-                        .iter()
-                        .map(|note| ParamValue::Note(note.clone()))
-                        .collect(),
-                )
-                .unwrap(),
-            ))
-            .unwrap();
-        params
-            .push(Box::new(
-                Param::new(
-                    "RANGE".into(),
-                    ParamValue::Number(12),
-                    (1..=60).map(ParamValue::Number).collect(),
-                )
-                .unwrap(),
-            ))
-            .unwrap();
+        params.push(Box::new(Param::new_note_param("ROOT"))).unwrap();
+        params.push(Box::new(Param::new_number_param("RANGE", 1, 60, 12))).unwrap();
         RandMelodyMachine {
             sequence_processor,
             params,

@@ -1,8 +1,8 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use core::fmt::Debug;
-use heapless::{String, Vec};
+use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use heapless::String;
 
 use crate::{machine_resources::MachineResources, param::ParamList, Sequence};
 
@@ -26,20 +26,72 @@ pub trait Machine: Debug + Send {
     fn params_mut(&mut self) -> &mut ParamList;
 }
 
-pub fn groove_machine_ids() -> Vec<String<6>, 10> {
-    "UNIT".split_whitespace().map(|s| s.into()).collect()
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum GrooveMachineId {
+    #[default]
+    Unit,
 }
 
-pub fn melody_machine_ids() -> Vec<String<6>, 10> {
-    "UNIT RAND".split_whitespace().map(|s| s.into()).collect()
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum MelodyMachineId {
+    #[default]
+    Unit,
+    Rand
 }
 
-// TODO impl TryFrom
-pub fn machine_from_id(id: &str) -> Result<Box<dyn Machine>, MachineError> {
-    let id_upcase = String::<6>::from(id).to_uppercase();
-    match id_upcase.as_str() {
-        "UNIT" => Ok(Box::new(UnitMachine::new())),
-        "RAND" => Ok(Box::new(RandMelodyMachine::new())),
-        unexpected => Err(MachineError::UnknowMachine(String::from(unexpected))),
+impl From<GrooveMachineId> for Box<dyn Machine> {
+    fn from(value: GrooveMachineId) -> Self {
+        match value {
+            GrooveMachineId::Unit => Box::new(UnitMachine::new()),
+        }
+    }
+}
+
+impl From<MelodyMachineId> for Box<dyn Machine> {
+    fn from(value: MelodyMachineId) -> Self {
+        match value {
+            MelodyMachineId::Unit => Box::new(UnitMachine::new()),
+            MelodyMachineId::Rand => Box::new(RandMelodyMachine::new()),
+        }
+    }
+}
+
+impl Display for GrooveMachineId {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            GrooveMachineId::Unit => Display::fmt("UNIT", f),
+        }
+    }
+}
+
+impl Display for MelodyMachineId {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            MelodyMachineId::Unit => Display::fmt("UNIT", f),
+            MelodyMachineId::Rand => Display::fmt("RAND", f),
+        }
+    }
+}
+
+impl TryFrom<u8> for GrooveMachineId {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(GrooveMachineId::Unit),
+            _ => Err(())
+        }
+    }
+}
+
+impl TryFrom<u8> for MelodyMachineId {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(MelodyMachineId::Unit),
+            1 => Ok(MelodyMachineId::Rand),
+            _ => Err(())
+        }
     }
 }

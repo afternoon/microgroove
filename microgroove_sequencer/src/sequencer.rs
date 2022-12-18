@@ -4,7 +4,7 @@ use embedded_midi::MidiMessage;
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};
 
-use crate::{Track, TRACK_COUNT};
+use crate::{TimeDivision, Track, TRACK_COUNT};
 
 // TODO will cause issues if polyphony
 const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
@@ -119,7 +119,7 @@ impl Sequencer {
                     let note_off_message =
                         MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
                     let note_off_time = ((tick_duration.to_micros()
-                        * (track.time_division as u64)
+                        * (TimeDivision::division_length_24ppqn(track.time_division) as u64)
                         * step.length_step_cents as u64)
                         / 100)
                         .micros();
@@ -177,7 +177,7 @@ mod tests {
         new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
         sequencer.enable_track(0, new_track);
         assert!(sequencer.tracks[0].is_some());
-        assert!(sequencer.tracks[1..16].iter().all(|track| track.is_none()));
+        assert!(sequencer.tracks[1..TRACK_COUNT].iter().all(|track| track.is_none()));
     }
 
     #[test]

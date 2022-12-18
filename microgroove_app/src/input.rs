@@ -4,7 +4,7 @@ use microgroove_sequencer::{
     param::{wrapping_add, ParamValue, ParamList},
     sequencer::Sequencer,
     machine_resources::MachineResources,
-    sequence_generator::SequenceGenerator, machine::machine_from_id,
+    sequence_generator::SequenceGenerator,
 };
 
 use core::iter::zip;
@@ -109,14 +109,14 @@ fn update_params(encoder_values: &EncoderValues, params: &mut ParamList) {
 
 fn update_machines(params_mut: &mut ParamList, generator: &mut SequenceGenerator) {
     match params_mut[0].value() {
-        ParamValue::GrooveMachine(machine_id) => {
-            generator.groove_machine = machine_from_id(machine_id.as_str()).unwrap();
+        ParamValue::GrooveMachineId(machine_id) => {
+            generator.groove_machine = machine_id.into()
         }
         unexpected => panic!("unexpected groove machine param: {:?}", unexpected)
     };
     match params_mut[3].value() {
-        ParamValue::MelodyMachine(machine_id) => {
-            generator.melody_machine = machine_from_id(machine_id.as_str()).unwrap();
+        ParamValue::MelodyMachineId(machine_id) => {
+            generator.melody_machine = machine_id.into()
         }
         unexpected => panic!("unexpected melody machine param: {:?}", unexpected)
     }

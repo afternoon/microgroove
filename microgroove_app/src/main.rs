@@ -20,7 +20,7 @@ use panic_probe as _;
 mod app {
     use alloc_cortex_m::CortexMHeap;
     use core::fmt::Write;
-    use defmt::{self, error, info, trace};
+    use defmt::{self, debug, error, info, trace};
     use defmt_rtt as _;
     use fugit::MicrosDurationU64;
     use heapless::{String, Vec};
@@ -114,7 +114,10 @@ mod app {
         info!("[init] hello world!");
 
         // initialise allocator for dynamic structures (machines, params, etc)
-        unsafe { ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES) }
+        unsafe {
+            ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES);
+                debug!("[init] heap_start={} heap_size_bytes={}", cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES);
+        }
 
         // configure RTIC monotonic as source of timestamps for defmt
         defmt::timestamp!("{=u64:us}", {
