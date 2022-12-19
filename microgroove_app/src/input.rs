@@ -47,7 +47,12 @@ pub fn apply_encoder_values(
             let track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut().unwrap();
             let params = track.params_mut();
             update_params(&encoder_values, params);
-            update_machines(params, generator);
+            if groove_machine_changed(input_mode, &encoder_values) {
+                update_groove_machine(generator, params[0].value())
+            }
+            if melody_machine_changed(input_mode, &encoder_values) {
+                update_melody_machine(generator, params[3].value())
+            }
             track.apply_params();
         }
         InputMode::Groove => {
@@ -82,6 +87,26 @@ fn track_num_has_changed(input_mode: InputMode, encoder_values: &EncoderValues) 
     }
 }
 
+fn groove_machine_changed(input_mode: InputMode, encoder_values: &EncoderValues) -> bool {
+    match input_mode {
+        InputMode::Track => match encoder_values.as_slice() {
+            [Some(_), _, _, _, _, _] => true,
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+fn melody_machine_changed(input_mode: InputMode, encoder_values: &EncoderValues) -> bool {
+    match input_mode {
+        InputMode::Track => match encoder_values.as_slice() {
+            [_, _, _, Some(_), _, _] => true,
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
 fn track_disabled(sequencer: &Sequencer, track_num: &u8) -> bool {
     sequencer.tracks.get(*track_num as usize).unwrap().is_none()
 }
@@ -107,14 +132,17 @@ fn update_params(encoder_values: &EncoderValues, params: &mut ParamList) {
     }
 }
 
-fn update_machines(params_mut: &mut ParamList, generator: &mut SequenceGenerator) {
-    match params_mut[0].value() {
+fn update_groove_machine(generator: &mut SequenceGenerator, param_value: ParamValue) {
+    match param_value {
         ParamValue::GrooveMachineId(machine_id) => {
             generator.groove_machine = machine_id.into()
         }
         unexpected => panic!("unexpected groove machine param: {:?}", unexpected)
     };
-    match params_mut[3].value() {
+}
+
+fn update_melody_machine(generator: &mut SequenceGenerator, param_value: ParamValue) {
+    match param_value {
         ParamValue::MelodyMachineId(machine_id) => {
             generator.melody_machine = machine_id.into()
         }
