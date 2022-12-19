@@ -1,6 +1,6 @@
 /// Rendering UI graphics to the display.
 use crate::{input::InputMode, peripherals::Display};
-use microgroove_sequencer::Sequence;
+use microgroove_sequencer::{map_to_range, Sequence};
 
 use core::{fmt::Write, iter::zip, str::FromStr};
 use display_interface::DisplayError;
@@ -38,11 +38,6 @@ const SEQUENCE_HEIGHT: u32 = 45;
 const SEQUENCE_UNDERLINE_Y_POS: i32 = 45;
 
 const PARAM_Y_POS: u32 = 51;
-
-// TODO move to another crate where it can be tested
-fn map_to_range(x: i32, in_min: i32, in_max: i32, out_min: i32, out_max: i32) -> i32 {
-    (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min
-}
 
 /// Show snazzy splash screen.
 pub fn render_splash_screen_view(display: &mut Display) -> DisplayResult {

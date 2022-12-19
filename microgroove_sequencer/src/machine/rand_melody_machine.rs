@@ -6,7 +6,7 @@ use crate::{
     machine_resources::MachineResources,
     midi::Note,
     param::{Param, ParamList, ParamValue},
-    Sequence,
+    map_to_range, Sequence,
 };
 
 use alloc::boxed::Box;
@@ -23,15 +23,17 @@ impl RandMelodyProcessor {
         &self,
         mut sequence: Sequence,
         machine_resources: &mut MachineResources,
-        _root: Note,
-        _range: u8,
+        root: Note,
+        range: u8,
     ) -> Sequence {
+        let root_note: u8 = root.into();
+        let max_note = root_note + range - 1;
         let rand = machine_resources.random_u64();
         let mut read_start_bit = 0;
         for step in sequence.iter_mut() {
             if let Some(step) = step {
-                let note_num: u8 = ((rand >> read_start_bit) & 0x80) as u8;
-                step.note = note_num.min(127).into();
+                let note_num = ((rand >> read_start_bit) & 127) as u8;
+                step.note = (map_to_range(note_num as i32, 0, 127, root_note as i32, max_note as i32) as u8).into();
                 read_start_bit += 1;
             }
         }
@@ -107,6 +109,27 @@ mod tests {
             SequenceGenerator::initial_sequence(8),
             &mut machine_resources,
         );
+        let output_sequence2 = machine.apply(
+            SequenceGenerator::initial_sequence(8),
+            &mut machine_resources,
+        );
         assert_ne!(input_sequence, output_sequence);
+        assert_ne!(output_sequence, output_sequence2);
+    }
+
+    #[test]
+    fn rand_melody_machine_should_generate_notes_in_specified_range() {
+        let mut machine_resources = MachineResources::new();
+        let machine = RandMelodyMachine::new();
+        let root_note: u8 = Note::default().into();
+        let max_note = root_note + 11;
+        let output_sequence = machine.apply(
+            SequenceGenerator::initial_sequence(8),
+            &mut machine_resources,
+        );
+        assert!(output_sequence.iter().all(|step| {
+            let note: u8 = step.as_ref().unwrap().note.into();
+            note >= root_note && note <= max_note
+        }));
     }
 }

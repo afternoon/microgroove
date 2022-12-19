@@ -129,7 +129,14 @@ pub enum Note {
     DSharp8,
     E8,
     F8,
+    FSharp8,
     G8,
+}
+
+impl Into<u8> for Note {
+    fn into(self) -> u8 {
+        self as u8
+    }
 }
 
 impl TryFrom<u8> for Note {
@@ -263,7 +270,8 @@ impl TryFrom<u8> for Note {
             123 => Ok(Note::DSharp8),
             124 => Ok(Note::E8),
             125 => Ok(Note::F8),
-            126 => Ok(Note::G8),
+            126 => Ok(Note::FSharp8),
+            127 => Ok(Note::G8),
             _ => Err(()),
         }
     }
@@ -271,7 +279,6 @@ impl TryFrom<u8> for Note {
 
 impl Display for Note {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        // TODO TryFrom
         write!(
             f,
             "{}",
@@ -402,6 +409,7 @@ impl Display for Note {
                 Note::DSharp8 => "D#8",
                 Note::E8 => "E8",
                 Note::F8 => "F8",
+                Note::FSharp8 => "F#8",
                 Note::G8 => "G8",
             }
         )

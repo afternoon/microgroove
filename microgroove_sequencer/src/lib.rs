@@ -33,6 +33,10 @@ const TRACK_MIN_NUM: u8 = 1;
 const MIDI_MIN_CHANNEL: u8 = 1;
 const MIDI_MAX_CHANNEL: u8 = 16;
 
+pub fn map_to_range(x: i32, in_min: i32, in_max: i32, out_min: i32, out_max: i32) -> i32 {
+    (x - in_min) * (out_max - out_min + 1) / (in_max - in_min + 1) + out_min
+}
+
 /// Represent a step in a musical sequence.
 #[derive(Clone, Debug)]
 pub struct Step {
@@ -255,6 +259,15 @@ impl Track {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn map_to_range_maps_to_range() {
+        assert_eq!(10, map_to_range(100, 0, 100, 0, 10));
+        assert_eq!(5, map_to_range(50, 0, 100, 0, 10));
+        assert_eq!(0, map_to_range(0, 0, 100, 0, 10));
+        assert_eq!(1, map_to_range(10, 0, 100, 0, 10));
+        assert_eq!(66, map_to_range(63, 0, 127, 60, 72));
+    }
 
     #[test]
     fn steps_are_correctly_ordered() {
