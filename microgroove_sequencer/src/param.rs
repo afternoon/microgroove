@@ -1,4 +1,4 @@
-/// Model parameters as mutable values with metadata (name)
+/// Model parameters as mutable values with metadata (name).
 extern crate alloc;
 
 use alloc::boxed::Box;

@@ -213,14 +213,12 @@ impl Track {
         // params 0 (groove machine), 2 (track number) and 3 (melody machine) are intentionally ignored
         // they are "virtual parameters" which don't actually relate to a `Track` at all. They're
         // andled by microgroove_app::input::map_encoder_values directly.
-
         match self.params[1].value() {
             ParamValue::Number(length) => {
                 self.length = length;
             }
             unexpected => panic!("unexpected track param[1]: {:?}", unexpected),
         };
-
         match self.params[4].value() {
             ParamValue::TimeDivision(time_division) => {
                 self.time_division = time_division;
@@ -229,7 +227,7 @@ impl Track {
         }
         match self.params[5].value() {
             ParamValue::Number(midi_channel) => {
-                self.midi_channel = midi_channel.into();
+                self.midi_channel = (midi_channel - 1).into();
             }
             unexpected => panic!("unexpected track param[5]: {:?}", unexpected),
         };
