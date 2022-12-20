@@ -1,6 +1,4 @@
-/// Reference machine which passes sequence input through unmodified.
-extern crate alloc;
-
+/// Machine which generates random note pitch values.
 use super::Machine;
 use crate::{
     machine_resources::MachineResources,
@@ -11,16 +9,22 @@ use crate::{
 
 use alloc::boxed::Box;
 
-#[derive(Clone, Copy, Debug)]
-struct RandMelodyProcessor;
+#[derive(Debug)]
+pub struct RandMelodyMachine {
+    params: ParamList,
+}
 
-impl RandMelodyProcessor {
-    pub fn new() -> RandMelodyProcessor {
-        RandMelodyProcessor {}
+impl RandMelodyMachine {
+    pub fn new() -> RandMelodyMachine {
+        let mut params = ParamList::new();
+        params.push(Box::new(Param::new_note_param("ROOT"))).unwrap();
+        params.push(Box::new(Param::new_number_param("RANGE", 1, 60, 12))).unwrap();
+        RandMelodyMachine {
+            params,
+        }
     }
 
-    pub fn apply(
-        &self,
+    fn process(
         mut sequence: Sequence,
         machine_resources: &mut MachineResources,
         root: Note,
@@ -38,25 +42,6 @@ impl RandMelodyProcessor {
             }
         }
         sequence
-    }
-}
-
-#[derive(Debug)]
-pub struct RandMelodyMachine {
-    sequence_processor: RandMelodyProcessor,
-    params: ParamList,
-}
-
-impl RandMelodyMachine {
-    pub fn new() -> RandMelodyMachine {
-        let sequence_processor = RandMelodyProcessor::new();
-        let mut params = ParamList::new();
-        params.push(Box::new(Param::new_note_param("ROOT"))).unwrap();
-        params.push(Box::new(Param::new_number_param("RANGE", 1, 60, 12))).unwrap();
-        RandMelodyMachine {
-            sequence_processor,
-            params,
-        }
     }
 }
 
@@ -88,8 +73,7 @@ impl Machine for RandMelodyMachine {
                 unexpected
             ),
         };
-        self.sequence_processor
-            .apply(sequence, machine_resources, root, range)
+        Self::process(sequence, machine_resources, root, range)
     }
 }
 

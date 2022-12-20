@@ -147,9 +147,11 @@ impl PerformView {
         let mut step_num: u8 = 0;
 
         for step in sequence {
+            let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
+            let x2 = x + step_width as i32;
+
+            // draw step
             if let Some(step) = step {
-                let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
-                let x2 = x + step_width as i32;
                 let note_num: u8 = step.note.into();
                 let y = map_to_range(
                     note_num as i32,
@@ -159,7 +161,6 @@ impl PerformView {
                     note_y_pos_max as i32,
                 );
 
-                // draw step
                 let step_style = if step_num == self.active_step_num.unwrap() {
                     outline_style()
                 } else {
@@ -168,15 +169,16 @@ impl PerformView {
                 Rectangle::new(Point::new(x as i32, y as i32), step_size)
                     .into_styled(step_style)
                     .draw(display)?;
-
-                // draw step underline
-                Line::new(
-                    Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
-                    Point::new(x2 - 1, SEQUENCE_UNDERLINE_Y_POS),
-                )
-                .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
-                .draw(display)?;
             }
+
+            // draw step underline
+            Line::new(
+                Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
+                Point::new(x2 - 1, SEQUENCE_UNDERLINE_Y_POS),
+            )
+            .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
+            .draw(display)?;
+
             step_num += 1;
         }
 
@@ -283,23 +285,16 @@ fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
 }
 
 fn note_min_max_as_u8s(sequence: &Sequence) -> (u8, u8) {
-    let note_min: u8 = sequence
-        .iter()
-        .min()
-        .unwrap()
-        .as_ref()
-        .unwrap()
-        .note
-        .into();
-    let note_max: u8 = sequence
-        .iter()
-        .max()
-        .unwrap()
-        .as_ref()
-        .unwrap()
-        .note
-        .into();
-    (note_min, note_max)
+    let mut min = 127;
+    let mut max = 0;
+    for step in sequence {
+        if let Some(step) = step {
+            let note: u8 = step.note.into();
+            min = note.min(min);
+            max = note.max(max);
+        }
+    }
+    (min, max)
 }
 
 fn default_character_style<'a>() -> MonoTextStyle<'a, BinaryColor> {

@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use embedded_midi::MidiMessage;
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};

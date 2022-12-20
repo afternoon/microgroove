@@ -1,6 +1,4 @@
 /// Reference machine which passes sequence input through unmodified.
-extern crate alloc;
-
 use super::Machine;
 use crate::{machine_resources::MachineResources, param::ParamList, Sequence};
 

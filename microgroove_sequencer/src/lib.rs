@@ -18,7 +18,7 @@ use core::{
     fmt::{Display, Formatter, Result as FmtResult},
 };
 use heapless::Vec;
-use midi_types::{Channel, Note, Value14, Value7};
+use midi_types::{Channel, Note, Value14, Value7}; // TODO switch to midi::Note
 
 pub const TRACK_COUNT: usize = 8;
 

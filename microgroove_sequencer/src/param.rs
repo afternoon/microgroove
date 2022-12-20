@@ -1,6 +1,4 @@
 /// Model parameters as mutable values with metadata (name).
-extern crate alloc;
-
 use alloc::boxed::Box;
 use core::cmp::PartialEq;
 use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
@@ -87,7 +85,7 @@ impl Param {
             name: name.into(),
             value: ParamValue::GrooveMachineId(GrooveMachineId::default()),
             min: ParamValue::GrooveMachineId(GrooveMachineId::Unit),
-            max: ParamValue::GrooveMachineId(GrooveMachineId::Unit),
+            max: ParamValue::GrooveMachineId(GrooveMachineId::Euclid),
         }
     }
 

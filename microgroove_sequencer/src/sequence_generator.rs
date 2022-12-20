@@ -1,5 +1,3 @@
-extern crate alloc;
-
 use crate::{
     machine::unit_machine::UnitMachine, machine::Machine, machine_resources::MachineResources,
     Sequence, Step,
