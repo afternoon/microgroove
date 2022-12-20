@@ -4,6 +4,7 @@ pub mod machine;
 pub mod machine_resources;
 pub mod midi;
 pub mod param;
+pub mod quantizer;
 pub mod sequence_generator;
 pub mod sequencer;
 
