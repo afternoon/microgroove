@@ -170,14 +170,14 @@ impl TryFrom<u8> for TimeDivision {
 pub type Sequence = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
 
 fn track_params() -> ParamList {
-    let mut params: ParamList = Vec::new();
-    params.push(Box::new(Param::new_groove_machine_id_param("GROOVE"))).unwrap();
-    params.push(Box::new(Param::new_number_param("LEN", TRACK_MIN_LENGTH, TRACK_MAX_LENGTH, TRACK_DEFAULT_LENGTH))).unwrap();
-    params.push(Box::new(Param::new_number_param("TRACK", TRACK_MIN_NUM, TRACK_COUNT as u8, TRACK_MIN_NUM))).unwrap();
-    params.push(Box::new(Param::new_melody_machine_id_param("MELODY"))).unwrap();
-    params.push(Box::new(Param::new_time_division_param("SPD"))).unwrap();
-    params.push(Box::new(Param::new_number_param("CHAN", MIDI_MIN_CHANNEL, MIDI_MAX_CHANNEL, MIDI_MIN_CHANNEL))).unwrap();
-    params
+    ParamList::from_slice(&[
+        Box::new(Param::new_groove_machine_id_param("GROOVE")),
+        Box::new(Param::new_number_param("LEN", TRACK_MIN_LENGTH, TRACK_MAX_LENGTH, TRACK_DEFAULT_LENGTH)),
+        Box::new(Param::new_number_param("TRACK", TRACK_MIN_NUM, TRACK_COUNT as u8, TRACK_MIN_NUM)),
+        Box::new(Param::new_melody_machine_id_param("MELODY")),
+        Box::new(Param::new_time_division_param("SPD")),
+        Box::new(Param::new_number_param("CHAN", MIDI_MIN_CHANNEL, MIDI_MAX_CHANNEL, MIDI_MIN_CHANNEL)),
+    ]).unwrap()
 }
 
 #[derive(Debug)]

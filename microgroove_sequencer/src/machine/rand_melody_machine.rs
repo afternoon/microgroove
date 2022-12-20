@@ -16,11 +16,11 @@ pub struct RandMelodyMachine {
 
 impl RandMelodyMachine {
     pub fn new() -> RandMelodyMachine {
-        let mut params = ParamList::new();
-        params.push(Box::new(Param::new_note_param("ROOT"))).unwrap();
-        params.push(Box::new(Param::new_number_param("RANGE", 1, 60, 12))).unwrap();
         RandMelodyMachine {
-            params,
+            params: ParamList::from_slice(&[
+                Box::new(Param::new_note_param("ROOT")),
+                Box::new(Param::new_number_param("RANGE", 1, 60, 12)),
+            ]).unwrap()
         }
     }
 
