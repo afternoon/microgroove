@@ -5,9 +5,9 @@ use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use heapless::{String, Vec};
 
 use crate::{
-    TimeDivision,
-    midi::Note,
     machine::{GrooveMachineId, MelodyMachineId},
+    midi::Note,
+    TimeDivision,
 };
 
 pub fn wrapping_add(a: i32, b: i32, max: i32) -> i32 {
@@ -105,7 +105,6 @@ impl Param {
             min: ParamValue::Note(Note::CMinus2),
             max: ParamValue::Note(Note::G8),
         }
-
     }
 
     pub fn name(&self) -> &str {
@@ -124,8 +123,12 @@ impl Param {
         self.value = match self.value {
             ParamValue::Number(_) => ParamValue::Number(new_value),
             ParamValue::TimeDivision(_) => ParamValue::TimeDivision(new_value.try_into().unwrap()),
-            ParamValue::GrooveMachineId(_) => ParamValue::GrooveMachineId(new_value.try_into().unwrap()),
-            ParamValue::MelodyMachineId(_) => ParamValue::MelodyMachineId(new_value.try_into().unwrap()),
+            ParamValue::GrooveMachineId(_) => {
+                ParamValue::GrooveMachineId(new_value.try_into().unwrap())
+            }
+            ParamValue::MelodyMachineId(_) => {
+                ParamValue::MelodyMachineId(new_value.try_into().unwrap())
+            }
             ParamValue::Note(_) => ParamValue::Note(new_value.try_into().unwrap()),
         }
     }

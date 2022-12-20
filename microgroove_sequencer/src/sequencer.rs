@@ -175,7 +175,9 @@ mod tests {
         new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
         sequencer.enable_track(0, new_track);
         assert!(sequencer.tracks[0].is_some());
-        assert!(sequencer.tracks[1..TRACK_COUNT].iter().all(|track| track.is_none()));
+        assert!(sequencer.tracks[1..TRACK_COUNT]
+            .iter()
+            .all(|track| track.is_none()));
     }
 
     #[test]

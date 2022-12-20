@@ -2,9 +2,10 @@
 use super::Machine;
 use crate::{
     machine_resources::MachineResources,
+    map_to_range,
     midi::Note,
     param::{Param, ParamList, ParamValue},
-    map_to_range, Sequence,
+    Sequence,
 };
 
 use alloc::boxed::Box;
@@ -20,7 +21,8 @@ impl RandMelodyMachine {
             params: ParamList::from_slice(&[
                 Box::new(Param::new_note_param("ROOT")),
                 Box::new(Param::new_number_param("RANGE", 1, 60, 12)),
-            ]).unwrap()
+            ])
+            .unwrap(),
         }
     }
 
@@ -37,7 +39,10 @@ impl RandMelodyMachine {
         for step in sequence.iter_mut() {
             if let Some(step) = step {
                 let note_num = ((rand >> read_start_bit) & 127) as u8;
-                step.note = (map_to_range(note_num as i32, 0, 127, root_note as i32, max_note as i32) as u8).into();
+                step.note =
+                    (map_to_range(note_num as i32, 0, 127, root_note as i32, max_note as i32)
+                        as u8)
+                        .into();
                 read_start_bit += 1;
             }
         }

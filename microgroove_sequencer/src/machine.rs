@@ -37,7 +37,7 @@ pub enum GrooveMachineId {
 pub enum MelodyMachineId {
     #[default]
     Unit,
-    Rand
+    Rand,
 }
 
 impl From<GrooveMachineId> for Box<dyn Machine> {
@@ -83,7 +83,7 @@ impl TryFrom<u8> for GrooveMachineId {
         match value {
             0 => Ok(GrooveMachineId::Unit),
             1 => Ok(GrooveMachineId::Euclid),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -95,7 +95,7 @@ impl TryFrom<u8> for MelodyMachineId {
         match value {
             0 => Ok(MelodyMachineId::Unit),
             1 => Ok(MelodyMachineId::Rand),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }

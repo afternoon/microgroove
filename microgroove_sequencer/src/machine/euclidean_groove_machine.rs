@@ -1,9 +1,14 @@
 /// Machine which generates Euclidean rhythms.
 use super::Machine;
-use crate::{machine_resources::MachineResources, param::{ParamList, Param, ParamValue}, Sequence};
+use crate::{
+    machine_resources::MachineResources,
+    param::{Param, ParamList, ParamValue},
+    Sequence,
+};
 
 use alloc::boxed::Box;
 
+#[rustfmt::skip]
 const EUCLIDEAN_LUT: [u32; 1024] = [
     0b1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0b10, 0b11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -50,7 +55,8 @@ impl EuclideanGrooveMachine {
             params: ParamList::from_slice(&[
                 Box::new(Param::new_number_param("NOTES", 1, 32, 3)),
                 Box::new(Param::new_number_param("ROTATE", 0, 31, 0)),
-            ]).unwrap(),
+            ])
+            .unwrap(),
         }
     }
 
@@ -122,7 +128,9 @@ mod tests {
             SequenceGenerator::initial_sequence(8),
             &mut machine_resources,
         );
-        assert!(matches!(output_sequence.as_slice(), [Some(_), None, None, Some(_), None, None, Some(_), None]));
+        assert!(matches!(
+            output_sequence.as_slice(),
+            [Some(_), None, None, Some(_), None, None, Some(_), None]
+        ));
     }
 }
-
