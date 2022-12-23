@@ -1,4 +1,5 @@
 use core::fmt::{Display, Formatter, Result as FmtResult};
+use midi_types;
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -158,6 +159,20 @@ impl TryFrom<u8> for Note {
             127 => Ok(Note::G8),
             _ => Err(()),
         }
+    }
+}
+
+impl Into<midi_types::Note> for Note {
+    fn into(self) -> midi_types::Note {
+        let note_num: u8 = self.into();
+        note_num.into()
+    }
+}
+
+impl From<midi_types::Note> for Note {
+    fn from(note: midi_types::Note) -> Self {
+        let note_num: u8 = note.into();
+        note_num.try_into().unwrap()
     }
 }
 

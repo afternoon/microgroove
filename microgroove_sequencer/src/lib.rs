@@ -172,7 +172,7 @@ pub type Sequence = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
 
 fn track_params() -> ParamList {
     ParamList::from_slice(&[
-        Box::new(Param::new_groove_machine_id_param("GROOVE")),
+        Box::new(Param::new_rhythm_machine_id_param("RHYTHM")),
         Box::new(Param::new_number_param(
             "LEN",
             TRACK_MIN_LENGTH,
@@ -231,9 +231,9 @@ impl Track {
     }
 
     pub fn apply_params(&mut self) {
-        // params 0 (groove machine), 2 (track number) and 3 (melody machine) are intentionally ignored
+        // params 0 (rhythm machine), 2 (track number) and 3 (melody machine) are intentionally ignored
         // they are "virtual parameters" which don't actually relate to a `Track` at all. They're
-        // andled by microgroove_app::input::map_encoder_values directly.
+        // handled by microgroove_app::input::map_encoder_values directly.
         match self.params[1].value() {
             ParamValue::Number(length) => {
                 self.length = length;

@@ -108,8 +108,11 @@ impl PerformView {
         }
         let title = match self.input_mode {
             InputMode::Track => "TRACK",
+            InputMode::Global => "GLOBAL",
+            InputMode::Rhythm => "RHYTHM",
             InputMode::Groove => "GROOVE",
             InputMode::Melody => "MELODY",
+            InputMode::Harmony => "HARMONY",
         };
         Text::with_text_style(
             title,
@@ -119,8 +122,7 @@ impl PerformView {
         )
         .draw(display)?;
         match self.input_mode {
-            InputMode::Track => { /* don't do nuffink */ }
-            InputMode::Groove | InputMode::Melody => {
+            InputMode::Rhythm | InputMode::Melody => {
                 Text::with_text_style(
                     self.machine_name.as_ref().map(|s| s.as_str()).unwrap_or(""),
                     Point::new(DISPLAY_WIDTH, 0),
@@ -129,6 +131,7 @@ impl PerformView {
                 )
                 .draw(display)?;
             }
+            _ => { /* don't do nuffink */ }
         }
         Ok(())
     }

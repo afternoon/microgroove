@@ -4,11 +4,11 @@ use heapless::String;
 
 use crate::{machine_resources::MachineResources, param::ParamList, Sequence};
 
-pub mod euclidean_groove_machine;
+pub mod euclidean_rhythm_machine;
 pub mod rand_melody_machine;
 pub mod unit_machine;
 
-use euclidean_groove_machine::EuclideanGrooveMachine;
+use euclidean_rhythm_machine::EuclideanRhythmMachine;
 use rand_melody_machine::RandMelodyMachine;
 use unit_machine::UnitMachine;
 
@@ -27,7 +27,7 @@ pub trait Machine: Debug + Send {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub enum GrooveMachineId {
+pub enum RhythmMachineId {
     #[default]
     Unit,
     Euclid,
@@ -40,11 +40,11 @@ pub enum MelodyMachineId {
     Rand,
 }
 
-impl From<GrooveMachineId> for Box<dyn Machine> {
-    fn from(value: GrooveMachineId) -> Self {
+impl From<RhythmMachineId> for Box<dyn Machine> {
+    fn from(value: RhythmMachineId) -> Self {
         match value {
-            GrooveMachineId::Unit => Box::new(UnitMachine::new()),
-            GrooveMachineId::Euclid => Box::new(EuclideanGrooveMachine::new()),
+            RhythmMachineId::Unit => Box::new(UnitMachine::new()),
+            RhythmMachineId::Euclid => Box::new(EuclideanRhythmMachine::new()),
         }
     }
 }
@@ -58,11 +58,11 @@ impl From<MelodyMachineId> for Box<dyn Machine> {
     }
 }
 
-impl Display for GrooveMachineId {
+impl Display for RhythmMachineId {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self {
-            GrooveMachineId::Unit => Display::fmt("UNIT", f),
-            GrooveMachineId::Euclid => Display::fmt("EUCLID", f),
+            RhythmMachineId::Unit => Display::fmt("UNIT", f),
+            RhythmMachineId::Euclid => Display::fmt("EUCLID", f),
         }
     }
 }
@@ -76,13 +76,13 @@ impl Display for MelodyMachineId {
     }
 }
 
-impl TryFrom<u8> for GrooveMachineId {
+impl TryFrom<u8> for RhythmMachineId {
     type Error = ();
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(GrooveMachineId::Unit),
-            1 => Ok(GrooveMachineId::Euclid),
+            0 => Ok(RhythmMachineId::Unit),
+            1 => Ok(RhythmMachineId::Euclid),
             _ => Err(()),
         }
     }

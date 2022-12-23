@@ -37,14 +37,14 @@ mod app {
         input::{self, InputMode},
         midi,
         peripherals::{
-            setup, ButtonGroovePin, ButtonMelodyPin, ButtonTrackPin, Display, MidiIn, MidiOut,
+            setup, ButtonRhythmPin, ButtonMelodyPin, ButtonTrackPin, Display, MidiIn, MidiOut,
         },
     };
     use microgroove_sequencer::{
         Track, TRACK_COUNT,
         machine_resources::MachineResources,
         sequence_generator::SequenceGenerator,
-        sequencer::{ScheduledMidiMessage, Sequencer},
+        sequencer::{ScheduledMidiMessage, Sequencer}, param::ParamList,
     };
 
     #[global_allocator]
@@ -95,8 +95,8 @@ mod app {
         /// Pin for button the [TRACK] button
         button_track_pin: ButtonTrackPin,
 
-        /// Pin for button the [GROOVE] button
-        button_groove_pin: ButtonGroovePin,
+        /// Pin for button the [RHYTHM] button
+        button_rhythm_pin: ButtonRhythmPin,
 
         /// Pin for button the [MELODY] button
         button_melody_pin: ButtonMelodyPin,
@@ -127,7 +127,7 @@ mod app {
         // create a device wrapper instance and grab some of the peripherals we need
         let (midi_in, midi_out, mut display, buttons, encoders, rosc, monotonic_timer) =
             setup(ctx.device);
-        let (button_track_pin, button_groove_pin, button_melody_pin) = buttons;
+        let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
 
         // create a vec of `SequenceGenerator`s, we'll use these to generate sequences for our
         // tracks.
@@ -167,7 +167,7 @@ mod app {
                 midi_out,
                 display,
                 button_track_pin,
-                button_groove_pin,
+                button_rhythm_pin,
                 button_melody_pin,
                 encoders,
                 machine_resources,
@@ -256,7 +256,7 @@ mod app {
         binds = IO_IRQ_BANK0,
         priority = 4,
         shared = [input_mode],
-        local = [button_track_pin, button_groove_pin, button_melody_pin]
+        local = [button_track_pin, button_rhythm_pin, button_melody_pin]
     )]
     fn io_irq_bank0(mut ctx: io_irq_bank0::Context) {
         let start = monotonics::now();
@@ -266,21 +266,30 @@ mod app {
         if ctx.local.button_track_pin.interrupt_status(EdgeLow) {
             info!("[TRACK] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
-                *input_mode = InputMode::Track;
+                *input_mode = match *input_mode {
+                    InputMode::Track => InputMode::Global,
+                    _ => InputMode::Track
+                }
             });
             ctx.local.button_track_pin.clear_interrupt(EdgeLow);
         }
-        if ctx.local.button_groove_pin.interrupt_status(EdgeLow) {
-            info!("[GROOVE] pressed");
+        if ctx.local.button_rhythm_pin.interrupt_status(EdgeLow) {
+            info!("[RHYTHM] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
-                *input_mode = InputMode::Groove;
+                *input_mode = match *input_mode {
+                    InputMode::Rhythm => InputMode::Groove,
+                    _ => InputMode::Rhythm
+                }
             });
-            ctx.local.button_groove_pin.clear_interrupt(EdgeLow);
+            ctx.local.button_rhythm_pin.clear_interrupt(EdgeLow);
         }
         if ctx.local.button_melody_pin.interrupt_status(EdgeLow) {
             info!("[MELODY] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
-                *input_mode = InputMode::Melody;
+                *input_mode = match *input_mode {
+                    InputMode::Melody => InputMode::Harmony,
+                    _ => InputMode::Melody
+                }
             });
             ctx.local.button_melody_pin.clear_interrupt(EdgeLow);
         }
@@ -339,15 +348,18 @@ mod app {
                     let active_step_num = Some(track.step_num(sequencer.tick));
                     let generator = sequence_generators.get(*current_track as usize).unwrap();
                     let machine_name = match input_mode {
-                        InputMode::Track => None,
-                        InputMode::Groove => Some(String::<10>::from(generator.groove_machine.name())),
+                        InputMode::Rhythm => Some(String::<10>::from(generator.rhythm_machine.name())),
                         InputMode::Melody => Some(String::<10>::from(generator.melody_machine.name())),
+                        _ => None,
                     };
+                    let global_params = ParamList::new();
                     let params = match input_mode {
                         InputMode::Track => track.params(),
-                        InputMode::Groove => generator.groove_machine.params(),
+                        InputMode::Global => &global_params, // TODO
+                        InputMode::Rhythm => generator.rhythm_machine.params(),
+                        InputMode::Groove => generator.groove_params(),
                         InputMode::Melody => generator.melody_machine.params(),
-
+                        InputMode::Harmony => generator.harmony_params(),
                     };
                     let param_data = Some(params.iter().map(|param| {
                         let mut value_string = String::new();

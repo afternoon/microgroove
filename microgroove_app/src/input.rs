@@ -19,12 +19,15 @@ const TRACK_NUM_PARAM_INDEX: usize = 2;
 pub enum InputMode {
     #[default]
     Track,
+    Global,
+    Rhythm,
     Groove,
     Melody,
+    Harmony,
 }
 
-/// Iterate over `encoder_values` and pass to either `Track`, groove `Machine` or
-/// melody `Machine`, determined by `input_mode`.
+/// Iterate over `encoder_values` and pass to a destination set of `Param`s
+/// determined by `InputMode`.
 pub fn apply_encoder_values(
     encoder_values: EncoderValues,
     input_mode: InputMode,
@@ -47,19 +50,30 @@ pub fn apply_encoder_values(
             let track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut().unwrap();
             let params = track.params_mut();
             update_params(&encoder_values, params);
-            if groove_machine_changed(input_mode, &encoder_values) {
-                update_groove_machine(generator, params[0].value())
+            if rhythm_machine_changed(input_mode, &encoder_values) {
+                update_rhythm_machine(generator, params[0].value())
             }
             if melody_machine_changed(input_mode, &encoder_values) {
                 update_melody_machine(generator, params[3].value())
             }
             track.apply_params();
         }
+        InputMode::Global => {
+            todo!();
+            // update_params(&encoder_values, global_params);
+            // sequencer.set_shuffle(global_params[0].value());
+        }
+        InputMode::Rhythm => {
+            update_params(&encoder_values, generator.rhythm_machine.params_mut());
+        }
         InputMode::Groove => {
-            update_params(&encoder_values, generator.groove_machine.params_mut());
+            update_params(&encoder_values, generator.groove_params_mut());
         }
         InputMode::Melody => {
             update_params(&encoder_values, generator.melody_machine.params_mut());
+        }
+        InputMode::Harmony => {
+            update_params(&encoder_values, generator.harmony_params_mut());
         }
     }
     update_sequence(sequencer, current_track, generator, machine_resources);
@@ -87,7 +101,7 @@ fn track_num_has_changed(input_mode: InputMode, encoder_values: &EncoderValues) 
     }
 }
 
-fn groove_machine_changed(input_mode: InputMode, encoder_values: &EncoderValues) -> bool {
+fn rhythm_machine_changed(input_mode: InputMode, encoder_values: &EncoderValues) -> bool {
     match input_mode {
         InputMode::Track => match encoder_values.as_slice() {
             [Some(_), _, _, _, _, _] => true,
@@ -132,12 +146,12 @@ fn update_params(encoder_values: &EncoderValues, params: &mut ParamList) {
     }
 }
 
-fn update_groove_machine(generator: &mut SequenceGenerator, param_value: ParamValue) {
+fn update_rhythm_machine(generator: &mut SequenceGenerator, param_value: ParamValue) {
     match param_value {
-        ParamValue::GrooveMachineId(machine_id) => {
-            generator.groove_machine = machine_id.into()
+        ParamValue::RhythmMachineId(machine_id) => {
+            generator.rhythm_machine = machine_id.into()
         }
-        unexpected => panic!("unexpected groove machine param: {:?}", unexpected)
+        unexpected => panic!("unexpected rhythm machine param: {:?}", unexpected)
     };
 }
 

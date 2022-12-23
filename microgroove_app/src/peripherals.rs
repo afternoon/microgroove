@@ -47,9 +47,9 @@ pub type Display = Ssd1306<
 
 // type alias for button pins
 pub type ButtonTrackPin = Pin<Gpio0, PullUpInput>;
-pub type ButtonGroovePin = Pin<Gpio1, PullUpInput>;
+pub type ButtonRhythmPin = Pin<Gpio1, PullUpInput>;
 pub type ButtonMelodyPin = Pin<Gpio2, PullUpInput>;
-type ButtonArray = (ButtonTrackPin, ButtonGroovePin, ButtonMelodyPin);
+type ButtonArray = (ButtonTrackPin, ButtonRhythmPin, ButtonMelodyPin);
 
 pub fn setup(
     mut pac: pac::Peripherals,
@@ -103,12 +103,12 @@ pub fn setup(
 
     // setup buttons
     let button_track_pin = pins.gpio0.into_pull_up_input();
-    let button_groove_pin = pins.gpio1.into_pull_up_input();
+    let button_rhythm_pin = pins.gpio1.into_pull_up_input();
     let button_melody_pin = pins.gpio2.into_pull_up_input();
     button_track_pin.set_interrupt_enabled(EdgeLow, true);
-    button_groove_pin.set_interrupt_enabled(EdgeLow, true);
+    button_rhythm_pin.set_interrupt_enabled(EdgeLow, true);
     button_melody_pin.set_interrupt_enabled(EdgeLow, true);
-    let buttons = (button_track_pin, button_groove_pin, button_melody_pin);
+    let buttons = (button_track_pin, button_rhythm_pin, button_melody_pin);
 
     // setup encoders
     let mut encoder_vec = Vec::new();

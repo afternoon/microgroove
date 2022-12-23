@@ -45,13 +45,13 @@ const EUCLIDEAN_LUT: [u32; 1024] = [
 ];
 
 #[derive(Debug)]
-pub struct EuclideanGrooveMachine {
+pub struct EuclideanRhythmMachine {
     params: ParamList,
 }
 
-impl EuclideanGrooveMachine {
-    pub fn new() -> EuclideanGrooveMachine {
-        EuclideanGrooveMachine {
+impl EuclideanRhythmMachine {
+    pub fn new() -> EuclideanRhythmMachine {
+        EuclideanRhythmMachine {
             params: ParamList::from_slice(&[
                 Box::new(Param::new_number_param("NOTES", 1, 32, 3)),
                 Box::new(Param::new_number_param("ROTATE", 0, 31, 0)),
@@ -81,7 +81,7 @@ impl EuclideanGrooveMachine {
     }
 }
 
-impl Machine for EuclideanGrooveMachine {
+impl Machine for EuclideanRhythmMachine {
     fn name(&self) -> &str {
         "EUCLID"
     }
@@ -98,14 +98,14 @@ impl Machine for EuclideanGrooveMachine {
         let notes = match self.params[0].value() {
             ParamValue::Number(num) => num,
             unexpected => panic!(
-                "EuclideanGrooveMachine got unexpected notes param: {:?}",
+                "EuclideanRhythmMachine got unexpected notes param: {:?}",
                 unexpected
             ),
         };
         let rotate = match self.params[1].value() {
             ParamValue::Number(num) => num,
             unexpected => panic!(
-                "EuclideanGrooveMachine got unexpected rotate param: {:?}",
+                "EuclideanRhythmMachine got unexpected rotate param: {:?}",
                 unexpected
             ),
         };
@@ -113,7 +113,7 @@ impl Machine for EuclideanGrooveMachine {
     }
 }
 
-unsafe impl Send for EuclideanGrooveMachine {}
+unsafe impl Send for EuclideanRhythmMachine {}
 
 #[cfg(test)]
 mod tests {
@@ -121,9 +121,9 @@ mod tests {
     use crate::{machine_resources::MachineResources, sequence_generator::SequenceGenerator};
 
     #[test]
-    fn euclidean_groove_machine_should_smash_out_euclidean_bangers_like_it_is_not_a_thing() {
+    fn euclidean_rhythm_machine_should_smash_out_euclidean_bangers_like_it_is_not_a_thing() {
         let mut machine_resources = MachineResources::new();
-        let machine = EuclideanGrooveMachine::new();
+        let machine = EuclideanRhythmMachine::new();
         let output_sequence = machine.apply(
             SequenceGenerator::initial_sequence(8),
             &mut machine_resources,
