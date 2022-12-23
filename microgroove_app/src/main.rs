@@ -20,16 +20,15 @@ use panic_probe as _;
 mod app {
     use alloc_cortex_m::CortexMHeap;
     use core::fmt::Write;
+    use debouncr::{Debouncer, debounce_8, Edge, Repeat8};
     use defmt::{self, debug, error, info, trace};
     use defmt_rtt as _;
+    use embedded_hal::digital::v2::InputPin;
     use fugit::MicrosDurationU64;
     use heapless::{String, Vec};
     use midi_types::MidiMessage;
     use nb::block;
-    use rp_pico::hal::{
-        gpio::Interrupt::EdgeLow,
-        timer::{monotonic::Monotonic, Alarm0},
-    };
+    use rp_pico::hal::timer::{monotonic::Monotonic, Alarm0};
 
     use crate::{
         display::{self, PerformView},
@@ -51,15 +50,18 @@ mod app {
     static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
     const HEAP_SIZE_BYTES: usize = 8 * 1024;
 
+    // how often to read button state
+    const BUTTON_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(5);
+
+    // how often to poll encoders for position updates
+    const ENCODER_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(2);
+
     // time between each display render
     // this is the practical upper bound for drawing and flushing a frame to the oled
     // at 40ms, the frame rate will be 25 FPS
     // we want the lowest frame rate that looks acceptable, to provide the largest budget for
     // render times
     const DISPLAY_UPDATE_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(40);
-
-    // how often to poll encoders for position updates
-    const ENCODER_READ_INTERVAL: MicrosDurationU64 = MicrosDurationU64::millis(2);
 
     /// Define RTIC monotonic timer. Also used for defmt.
     #[monotonic(binds = TIMER_IRQ_0, default = true)]
@@ -101,6 +103,15 @@ mod app {
         /// Pin for button the [MELODY] button
         button_melody_pin: ButtonMelodyPin,
 
+        /// Debounce state for [TRACK] button
+        button_track_state: Debouncer<u8, Repeat8>,
+
+        /// Debounce state for [RHYTHM] button
+        button_rhythm_state: Debouncer<u8, Repeat8>,
+
+        /// Debounce state for [MELODY] button
+        button_melody_state: Debouncer<u8, Repeat8>,
+
         // encoders
         encoders: EncoderArray,
 
@@ -129,6 +140,11 @@ mod app {
             setup(ctx.device);
         let (button_track_pin, button_rhythm_pin, button_melody_pin) = buttons;
 
+        // create bounce state trackers for each button
+        let button_track_state = debounce_8(false);
+        let button_rhythm_state = debounce_8(false);
+        let button_melody_state = debounce_8(false);
+
         // create a vec of `SequenceGenerator`s, we'll use these to generate sequences for our
         // tracks.
         let mut sequence_generators: Vec<SequenceGenerator, TRACK_COUNT> = Vec::new();
@@ -147,10 +163,9 @@ mod app {
         // show a splash screen for a bit
         display::render_splash_screen_view(&mut display).unwrap();
 
-        // start scheduled task to read encoders
+        // start scheduled tasks to read buttons, read encoders and update display
+        read_buttons::spawn().expect("read_buttons::spawn should succeed");
         read_encoders::spawn().expect("read_encoders::spawn should succeed");
-
-        // start scheduled task to update display
         update_display::spawn().expect("update_display::spawn should succeed");
 
         info!("[init] complete 🤘");
@@ -169,6 +184,9 @@ mod app {
                 button_track_pin,
                 button_rhythm_pin,
                 button_melody_pin,
+                button_track_state,
+                button_rhythm_state,
+                button_melody_state,
                 encoders,
                 machine_resources,
             },
@@ -251,19 +269,20 @@ mod app {
             .expect("midi_out.write(message) should succeed");
     }
 
-    /// Handle interrupts caused by button presses and update the `input_mode` shared resource.
+    /// Check state of buttons, debouncing inputs, and update the `input_mode` shared resource.
     #[task(
-        binds = IO_IRQ_BANK0,
         priority = 4,
         shared = [input_mode],
-        local = [button_track_pin, button_rhythm_pin, button_melody_pin]
+        local = [button_track_pin, button_rhythm_pin, button_melody_pin, button_track_state, button_rhythm_state, button_melody_state]
     )]
-    fn io_irq_bank0(mut ctx: io_irq_bank0::Context) {
+    fn read_buttons(mut ctx: read_buttons::Context) {
         let start = monotonics::now();
-        trace!("[io_irq_bank0] start");
+        trace!("[read_buttons] start");
 
-        // for each button, check interrupt status to see if we fired
-        if ctx.local.button_track_pin.interrupt_status(EdgeLow) {
+        // for each button
+        let track_pressed = ctx.local.button_track_pin.is_low().unwrap();
+        let track_edge = ctx.local.button_track_state.update(track_pressed);
+        if track_edge == Some(Edge::Rising) {
             info!("[TRACK] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
@@ -271,9 +290,11 @@ mod app {
                     _ => InputMode::Track
                 }
             });
-            ctx.local.button_track_pin.clear_interrupt(EdgeLow);
         }
-        if ctx.local.button_rhythm_pin.interrupt_status(EdgeLow) {
+
+        let rhythm_pressed = ctx.local.button_rhythm_pin.is_low().unwrap();
+        let rhythm_edge = ctx.local.button_rhythm_state.update(rhythm_pressed);
+        if rhythm_edge == Some(Edge::Rising) {
             info!("[RHYTHM] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
@@ -281,9 +302,11 @@ mod app {
                     _ => InputMode::Rhythm
                 }
             });
-            ctx.local.button_rhythm_pin.clear_interrupt(EdgeLow);
         }
-        if ctx.local.button_melody_pin.interrupt_status(EdgeLow) {
+
+        let melody_pressed = ctx.local.button_melody_pin.is_low().unwrap();
+        let melody_edge = ctx.local.button_melody_state.update(melody_pressed);
+        if melody_edge == Some(Edge::Rising) {
             info!("[MELODY] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
@@ -291,10 +314,11 @@ mod app {
                     _ => InputMode::Melody
                 }
             });
-            ctx.local.button_melody_pin.clear_interrupt(EdgeLow);
         }
 
-        trace!("[io_irq_bank0] elapsed_time={}", (monotonics::now() - start).to_micros());
+        read_buttons::spawn_after(BUTTON_READ_INTERVAL).unwrap();
+
+        trace!("[read_buttons] elapsed_time={}", (monotonics::now() - start).to_micros());
     }
 
     /// Check encoders for position changes.

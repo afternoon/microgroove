@@ -9,9 +9,7 @@ use rp_pico::{
         clocks::{self, Clock},
         gpio::{
             pin::bank0::{Gpio0, Gpio1, Gpio16, Gpio17, Gpio2, Gpio26, Gpio27},
-            FunctionI2C, FunctionUart,
-            Interrupt::EdgeLow,
-            Pin, PullUpInput,
+            FunctionI2C, FunctionUart, Pin, PullUpInput,
         },
         pac::{self, I2C1, RESETS, TIMER, UART0},
         rosc::RingOscillator,
@@ -105,9 +103,6 @@ pub fn setup(
     let button_track_pin = pins.gpio0.into_pull_up_input();
     let button_rhythm_pin = pins.gpio1.into_pull_up_input();
     let button_melody_pin = pins.gpio2.into_pull_up_input();
-    button_track_pin.set_interrupt_enabled(EdgeLow, true);
-    button_rhythm_pin.set_interrupt_enabled(EdgeLow, true);
-    button_melody_pin.set_interrupt_enabled(EdgeLow, true);
     let buttons = (button_track_pin, button_rhythm_pin, button_melody_pin);
 
     // setup encoders
