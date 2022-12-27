@@ -68,30 +68,6 @@ impl Sequencer {
         self.playing = true
     }
 
-    // TODO move to other places and remove
-
-    // pub fn current_track_num(&self) -> u8 {
-    //     self.current_track_num as u8 + 1
-    // }
-
-    // pub fn current_track(&self) -> &Option<Track> {
-    //     &self.tracks.get(self.current_track_num).unwrap()
-    // }
-
-    // pub fn current_track_mut(&mut self) -> &mut Option<Track> {
-    //     self.tracks.get_mut(self.current_track_num).unwrap()
-    // }
-
-    // pub fn current_track_active_step_num(&self) -> Option<u8> {
-    //     self.current_track()
-    //         .as_ref()
-    //         .map(|track| track.step_num(self.tick))
-    // }
-
-    // pub fn set_current_track(&mut self, new_track_num: u8) {
-    //     self.current_track_num = new_track_num as usize;
-    // }
-
     pub fn enable_track(&mut self, track_num: u8, new_track: Track) -> &mut Track {
         self.tracks[track_num as usize].insert(new_track)
     }
