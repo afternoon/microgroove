@@ -1,4 +1,4 @@
-use embedded_midi::MidiMessage;
+use midi_types::MidiMessage;
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};
 
@@ -14,19 +14,32 @@ pub enum SequencerError {
     EnableTrackError(),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ScheduledMidiMessage {
     Immediate(MidiMessage),
     Delayed(MidiMessage, MicrosDurationU64),
 }
 
 const DEFAULT_BPM: u64 = 130;
-const DEFAULT_TICK_DURATION_US: u64 = (60 / DEFAULT_BPM) / 24;
+const DEFAULT_TICK_DURATION_US: u64 = (60_000_000 / DEFAULT_BPM) / 24;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Swing {
+    None = 50,
+    Mpc54 = 54,
+    Mpc58 = 58,
+    Mpc62 = 62,
+    Mpc66 = 66,
+    Mpc70 = 70,
+    Mpc75 = 75
+}
 
 pub struct Sequencer {
     pub tracks: Vec<Option<Track>, TRACK_COUNT>,
-    pub tick: u32,
+    tick: u32,
     playing: bool,
+    swing: Swing,
+
     last_tick_instant_us: Option<u64>,
     midi_tick_history: HistoryBuffer<u64, MIDI_HISTORY_SAMPLE_COUNT>,
 }
@@ -44,6 +57,7 @@ impl Default for Sequencer {
             tracks,
             tick: 0,
             playing: false,
+            swing: Swing::None,
             last_tick_instant_us: None,
             midi_tick_history: HistoryBuffer::<u64, MIDI_HISTORY_SAMPLE_COUNT>::new(),
         }
@@ -51,8 +65,12 @@ impl Default for Sequencer {
 }
 
 impl Sequencer {
-    pub fn is_playing(&self) -> bool {
+    pub fn playing(&self) -> bool {
         self.playing
+    }
+
+    pub fn tick(&self) -> u32 {
+        self.tick
     }
 
     pub fn start_playing(&mut self) {
@@ -68,6 +86,10 @@ impl Sequencer {
         self.playing = true
     }
 
+    pub fn set_swing(&mut self, swing: Swing) {
+        self.swing = swing;
+    }
+
     pub fn enable_track(&mut self, track_num: u8, new_track: Track) -> &mut Track {
         self.tracks[track_num as usize].insert(new_track)
     }
@@ -81,22 +103,38 @@ impl Sequencer {
             return output_messages;
         }
 
+        let apply_swing = self.swing != Swing::None && self.tick % 12 == 6;
+        let swing_delay = (tick_duration * (self.swing as u32 - 50)) / 8;
+
         for track in &self.tracks {
             if let Some(track) = track {
                 if let Some(step) = track.step_at_tick(self.tick) {
                     let note_on_message =
                         MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
-                    output_messages
-                        .push(ScheduledMidiMessage::Immediate(note_on_message))
-                        .unwrap();
+                    if apply_swing {
+                        output_messages
+                            .push(ScheduledMidiMessage::Delayed(note_on_message, swing_delay))
+                            .unwrap();
+                    } else {
+                        output_messages
+                            .push(ScheduledMidiMessage::Immediate(note_on_message))
+                            .unwrap();
+                    }
 
                     let note_off_message =
                         MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
-                    let note_off_time = ((tick_duration.to_micros()
-                        * (TimeDivision::division_length_24ppqn(track.time_division) as u64)
-                        * step.length_step_cents as u64)
-                        / 100)
-                        .micros();
+                    let mut note_off_time = (
+                        (
+                            tick_duration.to_micros()
+                            * (TimeDivision::division_length_24ppqn(track.time_division) as u64)
+                            * step.length_step_cents as u64
+                        )
+                        / 100
+                    )
+                    .micros();
+                    if apply_swing {
+                        note_off_time += swing_delay;
+                    }
                     output_messages
                         .push(ScheduledMidiMessage::Delayed(
                             note_off_message,
@@ -159,26 +197,26 @@ mod tests {
     #[test]
     fn sequencer_should_start_stop_and_continue_playing() {
         let mut sequencer = Sequencer::default();
-        assert_eq!(false, sequencer.is_playing());
+        assert_eq!(false, sequencer.playing());
         assert_eq!(0, sequencer.tick);
         sequencer.start_playing();
-        assert_eq!(true, sequencer.is_playing());
+        assert_eq!(true, sequencer.playing());
 
         sequencer.advance(1);
         sequencer.stop_playing();
-        assert_eq!(false, sequencer.is_playing());
+        assert_eq!(false, sequencer.playing());
 
         sequencer.advance(1); // should be ignored because sequencer stopped
         sequencer.continue_playing();
         sequencer.advance(1);
-        assert_eq!(true, sequencer.is_playing());
+        assert_eq!(true, sequencer.playing());
         assert_eq!(2, sequencer.tick);
 
         sequencer.stop_playing();
         assert_eq!(2, sequencer.tick);
 
         sequencer.start_playing();
-        assert_eq!(true, sequencer.is_playing());
+        assert_eq!(true, sequencer.playing());
         assert_eq!(0, sequencer.tick);
     }
 
@@ -197,5 +235,82 @@ mod tests {
         sequencer.average_tick_duration(400);
         let tick_duration = sequencer.average_tick_duration(450);
         assert_eq!(75, tick_duration.to_micros());
+    }
+
+    #[test]
+    fn sequencer_advance_should_output_immediate_note_on_and_delayed_note_off_messages() {
+        let mut now_us = 0;
+        let mut sequencer = Sequencer::default();
+        let generator = SequenceGenerator::default();
+        let mut machine_resources = MachineResources::new();
+        let mut new_track = Track::default();
+        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        sequencer.enable_track(0, new_track);
+        sequencer.start_playing();
+        let mut output_messages = vec![];
+        for _ in 0..48 {
+            let step_messages = sequencer.advance(now_us);
+            output_messages.extend(step_messages.into_iter());
+            now_us += DEFAULT_TICK_DURATION_US;
+        }
+        assert_eq!(16, output_messages.len()); // 8 note on/note off pairs
+        let expected_note_on = ScheduledMidiMessage::Immediate(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()));
+        let expected_note_off = ScheduledMidiMessage::Delayed(MidiMessage::NoteOff(0.into(), 60.into(), 0.into()), 92304.micros());
+        assert_eq!(expected_note_on, output_messages[0]);
+        assert_eq!(expected_note_off, output_messages[1]);
+        assert_eq!(expected_note_on, output_messages[2]);
+        assert_eq!(expected_note_off, output_messages[3]);
+        assert_eq!(expected_note_on, output_messages[4]);
+        assert_eq!(expected_note_off, output_messages[5]);
+        assert_eq!(expected_note_on, output_messages[6]);
+        assert_eq!(expected_note_off, output_messages[7]);
+        assert_eq!(expected_note_on, output_messages[8]);
+        assert_eq!(expected_note_off, output_messages[9]);
+        assert_eq!(expected_note_on, output_messages[10]);
+        assert_eq!(expected_note_off, output_messages[11]);
+        assert_eq!(expected_note_on, output_messages[12]);
+        assert_eq!(expected_note_off, output_messages[13]);
+        assert_eq!(expected_note_on, output_messages[14]);
+        assert_eq!(expected_note_off, output_messages[15]);
+    }
+
+    #[test]
+    fn sequencer_advance_with_swing_enabled_should_output_delayed_note_on_messages_for_swung_steps() {
+        let mut now_us = 0;
+        let mut sequencer = Sequencer::default();
+        let generator = SequenceGenerator::default();
+        let mut machine_resources = MachineResources::new();
+        let mut new_track = Track::default();
+        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        sequencer.enable_track(0, new_track);
+        sequencer.set_swing(Swing::Mpc54);
+        sequencer.start_playing();
+        let mut output_messages = vec![];
+        for _ in 0..48 {
+            let step_messages = sequencer.advance(now_us);
+            output_messages.extend(step_messages.into_iter());
+            now_us += DEFAULT_TICK_DURATION_US;
+        }
+        assert_eq!(16, output_messages.len()); // 8 note on/note off pairs
+        let expected_note_on = ScheduledMidiMessage::Immediate(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()));
+        let expected_note_on_with_swing = ScheduledMidiMessage::Delayed(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()), 9615.micros());
+        let expected_note_off = ScheduledMidiMessage::Delayed(MidiMessage::NoteOff(0.into(), 60.into(), 0.into()), 92304.micros());
+        let expected_note_off_with_swing = ScheduledMidiMessage::Delayed(MidiMessage::NoteOff(0.into(), 60.into(), 0.into()), (92304 + 9615).micros());
+        assert_eq!(expected_note_on, output_messages[0]);
+        assert_eq!(expected_note_off, output_messages[1]);
+        assert_eq!(expected_note_on_with_swing, output_messages[2]);
+        assert_eq!(expected_note_off_with_swing, output_messages[3]);
+        assert_eq!(expected_note_on, output_messages[4]);
+        assert_eq!(expected_note_off, output_messages[5]);
+        assert_eq!(expected_note_on_with_swing, output_messages[6]);
+        assert_eq!(expected_note_off_with_swing, output_messages[7]);
+        assert_eq!(expected_note_on, output_messages[8]);
+        assert_eq!(expected_note_off, output_messages[9]);
+        assert_eq!(expected_note_on_with_swing, output_messages[10]);
+        assert_eq!(expected_note_off_with_swing, output_messages[11]);
+        assert_eq!(expected_note_on, output_messages[12]);
+        assert_eq!(expected_note_off, output_messages[13]);
+        assert_eq!(expected_note_on_with_swing, output_messages[14]);
+        assert_eq!(expected_note_off_with_swing, output_messages[15]);
     }
 }
