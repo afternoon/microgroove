@@ -43,7 +43,7 @@ mod app {
         Track, TRACK_COUNT,
         machine_resources::MachineResources,
         sequence_generator::SequenceGenerator,
-        sequencer::{ScheduledMidiMessage, Sequencer}, param::ParamList,
+        sequencer::{ScheduledMidiMessage, Sequencer},
     };
 
     #[global_allocator]
@@ -286,7 +286,7 @@ mod app {
             info!("[TRACK] pressed");
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
-                    InputMode::Track => InputMode::Global,
+                    InputMode::Track => InputMode::Sequence,
                     _ => InputMode::Track
                 }
             });
@@ -341,7 +341,7 @@ mod app {
                     sequencer,
                     sequence_generators,
                     ctx.local.machine_resources,
-                );
+                ).expect("should be able to apply encoder values");
             })
         }
 
@@ -377,10 +377,9 @@ mod app {
                         InputMode::Melody => Some(String::<10>::from(generator.melody_machine.name())),
                         _ => None,
                     };
-                    let global_params = ParamList::new();
                     let params = match input_mode {
                         InputMode::Track => track.params(),
-                        InputMode::Global => &global_params, // TODO
+                        InputMode::Sequence => sequencer.params(),
                         InputMode::Rhythm => generator.rhythm_machine.params(),
                         InputMode::Groove => generator.groove_params(),
                         InputMode::Melody => generator.melody_machine.params(),

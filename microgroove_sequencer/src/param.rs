@@ -4,6 +4,7 @@ use core::cmp::PartialEq;
 use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use heapless::{String, Vec};
 
+use crate::sequencer::Swing;
 use crate::{
     machine::{MelodyMachineId, RhythmMachineId},
     midi::Note,
@@ -44,6 +45,7 @@ pub enum ParamValue {
     Note(Note),
     Scale(Scale),
     Key(Key),
+    Swing(Swing),
 }
 
 impl Display for ParamValue {
@@ -56,6 +58,7 @@ impl Display for ParamValue {
             ParamValue::Note(note) => Display::fmt(&note, f),
             ParamValue::Scale(scale) => Display::fmt(&scale, f),
             ParamValue::Key(key) => Display::fmt(&key, f),
+            ParamValue::Swing(swing) => Display::fmt(&swing, f),
         }
     }
 }
@@ -70,11 +73,17 @@ impl From<ParamValue> for i32 {
             ParamValue::Note(note) => note as i32,
             ParamValue::Scale(scale) => scale as i32,
             ParamValue::Key(key) => key as i32,
+            ParamValue::Swing(swing) => swing as i32,
         }
     }
 }
 
 type ParamName = String<6>;
+
+#[derive(Debug)]
+pub enum ParamError {
+    ValueError,
+}
 
 #[derive(Clone, Debug)]
 pub struct Param {
@@ -151,6 +160,15 @@ impl Param {
         }
     }
 
+    pub fn new_swing_param(name: &str) -> Param {
+        Param {
+            name: name.into(),
+            value: ParamValue::Swing(Swing::default()),
+            min: ParamValue::Swing(Swing::None),
+            max: ParamValue::Swing(Swing::Mpc75),
+        }
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -167,28 +185,47 @@ impl Param {
         self.value = new_value;
     }
 
-    pub fn set_from_u8(&mut self, new_value: u8) {
-        self.value = match self.value {
-            ParamValue::Number(_) => ParamValue::Number(new_value),
-            ParamValue::TimeDivision(_) => ParamValue::TimeDivision(new_value.try_into().unwrap()),
-            ParamValue::RhythmMachineId(_) => {
-                ParamValue::RhythmMachineId(new_value.try_into().unwrap())
-            }
-            ParamValue::MelodyMachineId(_) => {
-                ParamValue::MelodyMachineId(new_value.try_into().unwrap())
-            }
-            ParamValue::Note(_) => ParamValue::Note(new_value.try_into().unwrap()),
-            ParamValue::Scale(_) => ParamValue::Scale(new_value.try_into().unwrap()),
-            ParamValue::Key(_) => ParamValue::Key(new_value.try_into().unwrap()),
-        }
+    pub fn set_from_u8(&mut self, new_value: u8) -> Result<(), ParamError> {
+        match self.value {
+            ParamValue::Number(_) => self.value = ParamValue::Number(new_value),
+            ParamValue::TimeDivision(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::TimeDivision(val))
+                .map_err(|_| ParamError::ValueError)?,
+            ParamValue::RhythmMachineId(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::RhythmMachineId(val))
+                .map_err(|_| ParamError::ValueError)?,
+            ParamValue::MelodyMachineId(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::MelodyMachineId(val))
+                .map_err(|_| ParamError::ValueError)?,
+            ParamValue::Note(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::Note(val))
+                .map_err(|_| ParamError::ValueError)?,
+            ParamValue::Scale(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::Scale(val))
+                .map_err(|_| ParamError::ValueError)?,
+            ParamValue::Key(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::Key(val))
+                .map_err(|_| ParamError::ValueError)?,
+            ParamValue::Swing(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::Swing(val))
+                .map_err(|_| ParamError::ValueError)?,
+        };
+        Ok(())
     }
 
-    pub fn increment(&mut self, n: i32) {
+    pub fn increment(&mut self, n: i32) -> Result<(), ParamError> {
         let value_i32: i32 = self.value.into();
         let min_i32: i32 = self.min.into();
         let max_i32: i32 = self.max.into();
         let new_value = (wrapping_add(value_i32 - min_i32, n, max_i32 - min_i32) + min_i32) as u8;
-        self.set_from_u8(new_value);
+        self.set_from_u8(new_value)
     }
 }
 
@@ -207,7 +244,7 @@ mod tests {
     #[test]
     fn param_number_should_increment() {
         let mut param_number = Param::new_number_param("NUM", 0, 10, 0);
-        param_number.increment(1);
+        param_number.increment(1).unwrap();
         match param_number.value() {
             ParamValue::Number(i) => assert_eq!(1, i),
             _ => panic!("unexpected param value"),
@@ -217,17 +254,17 @@ mod tests {
     #[test]
     fn param_number_starting_at_1_should_increment() {
         let mut param_number = Param::new_number_param("NUM", 1, 10, 1);
-        param_number.increment(1);
+        param_number.increment(1).unwrap();
         match param_number.value() {
             ParamValue::Number(i) => assert_eq!(2, i),
             _ => panic!("unexpected param value"),
         }
-        param_number.increment(10);
+        param_number.increment(10).unwrap();
         match param_number.value() {
             ParamValue::Number(i) => assert_eq!(2, i),
             _ => panic!("unexpected param value"),
         }
-        param_number.increment(-5);
+        param_number.increment(-5).unwrap();
         match param_number.value() {
             ParamValue::Number(i) => assert_eq!(7, i),
             _ => panic!("unexpected param value"),
@@ -237,13 +274,13 @@ mod tests {
     #[test]
     fn param_time_division_should_increment() {
         let mut param_time_div = Param::new_time_division_param("SPD");
-        param_time_div.increment(1);
+        param_time_div.increment(1).unwrap();
         assert_param_time_division(TimeDivision::Eigth, &param_time_div);
-        param_time_div.increment(9);
+        param_time_div.increment(9).unwrap();
         assert_param_time_division(TimeDivision::Sixteenth, &param_time_div);
-        param_time_div.increment(-1);
+        param_time_div.increment(-1).unwrap();
         assert_param_time_division(TimeDivision::ThirtySecond, &param_time_div);
-        param_time_div.increment(-11);
+        param_time_div.increment(-11).unwrap();
         assert_param_time_division(TimeDivision::Whole, &param_time_div);
     }
 

@@ -1,8 +1,13 @@
-use midi_types::MidiMessage;
+use alloc::boxed::Box;
+use core::fmt::{Display, Formatter, Result as FmtResult};
 use fugit::{ExtU64, MicrosDurationU64};
 use heapless::{HistoryBuffer, Vec};
+use midi_types::MidiMessage;
 
-use crate::{TimeDivision, Track, TRACK_COUNT};
+use crate::{
+    param::{Param, ParamList, ParamValue},
+    TimeDivision, Track, TRACK_COUNT,
+};
 
 // TODO will cause issues if polyphony
 const MAX_MESSAGES_PER_TICK: usize = TRACK_COUNT * 2;
@@ -23,23 +28,66 @@ pub enum ScheduledMidiMessage {
 const DEFAULT_BPM: u64 = 130;
 const DEFAULT_TICK_DURATION_US: u64 = (60_000_000 / DEFAULT_BPM) / 24;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Swing {
-    None = 50,
-    Mpc54 = 54,
-    Mpc58 = 58,
-    Mpc62 = 62,
-    Mpc66 = 66,
-    Mpc70 = 70,
-    Mpc75 = 75
+    #[default]
+    None,
+    Mpc54,
+    Mpc58,
+    Mpc62,
+    Mpc66,
+    Mpc70,
+    Mpc75,
+}
+
+impl Swing {
+    pub fn as_percentage(&self) -> u8 {
+        match self {
+            Swing::None => 50,
+            Swing::Mpc54 => 54,
+            Swing::Mpc58 => 58,
+            Swing::Mpc62 => 62,
+            Swing::Mpc66 => 66,
+            Swing::Mpc70 => 70,
+            Swing::Mpc75 => 75,
+        }
+    }
+}
+
+impl Display for Swing {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "{}", self.as_percentage())
+    }
+}
+
+impl Into<u8> for Swing {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}
+
+impl TryFrom<u8> for Swing {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Swing::None),
+            1 => Ok(Swing::Mpc54),
+            2 => Ok(Swing::Mpc58),
+            3 => Ok(Swing::Mpc62),
+            4 => Ok(Swing::Mpc66),
+            5 => Ok(Swing::Mpc70),
+            6 => Ok(Swing::Mpc75),
+            _ => Err(()),
+        }
+    }
 }
 
 pub struct Sequencer {
     pub tracks: Vec<Option<Track>, TRACK_COUNT>,
     tick: u32,
     playing: bool,
-    swing: Swing,
-
+    params: ParamList,
     last_tick_instant_us: Option<u64>,
     midi_tick_history: HistoryBuffer<u64, MIDI_HISTORY_SAMPLE_COUNT>,
 }
@@ -57,7 +105,11 @@ impl Default for Sequencer {
             tracks,
             tick: 0,
             playing: false,
-            swing: Swing::None,
+            params: ParamList::from_slice(&[
+                // if ordering changes, need to update getters and setters, e.g. swing/set_swing
+                Box::new(Param::new_swing_param("SWING")),
+            ])
+            .unwrap(),
             last_tick_instant_us: None,
             midi_tick_history: HistoryBuffer::<u64, MIDI_HISTORY_SAMPLE_COUNT>::new(),
         }
@@ -67,6 +119,14 @@ impl Default for Sequencer {
 impl Sequencer {
     pub fn playing(&self) -> bool {
         self.playing
+    }
+
+    pub fn params(&self) -> &ParamList {
+        &self.params
+    }
+
+    pub fn params_mut(&mut self) -> &mut ParamList {
+        &mut self.params
     }
 
     pub fn tick(&self) -> u32 {
@@ -86,8 +146,15 @@ impl Sequencer {
         self.playing = true
     }
 
+    pub fn swing(&self) -> Swing {
+        match self.params[0].value() {
+            ParamValue::Swing(swing) => swing,
+            unexpected => panic!("unexpected sequencer param[0]: {:?}", unexpected),
+        }
+    }
+
     pub fn set_swing(&mut self, swing: Swing) {
-        self.swing = swing;
+        self.params[0].set(ParamValue::Swing(swing));
     }
 
     pub fn enable_track(&mut self, track_num: u8, new_track: Track) -> &mut Track {
@@ -103,8 +170,8 @@ impl Sequencer {
             return output_messages;
         }
 
-        let apply_swing = self.swing != Swing::None && self.tick % 12 == 6;
-        let swing_delay = (tick_duration * (self.swing as u32 - 50)) / 8;
+        let apply_swing = self.swing() != Swing::None && self.tick % 12 == 6;
+        let swing_delay = (tick_duration * (self.swing().as_percentage() - 50) as u32) / 8;
 
         for track in &self.tracks {
             if let Some(track) = track {
@@ -123,15 +190,11 @@ impl Sequencer {
 
                     let note_off_message =
                         MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
-                    let mut note_off_time = (
-                        (
-                            tick_duration.to_micros()
-                            * (TimeDivision::division_length_24ppqn(track.time_division) as u64)
-                            * step.length_step_cents as u64
-                        )
-                        / 100
-                    )
-                    .micros();
+                    let mut note_off_time = ((tick_duration.to_micros()
+                        * (TimeDivision::division_length_24ppqn(track.time_division) as u64)
+                        * step.length_step_cents as u64)
+                        / 100)
+                        .micros();
                     if apply_swing {
                         note_off_time += swing_delay;
                     }
@@ -254,8 +317,12 @@ mod tests {
             now_us += DEFAULT_TICK_DURATION_US;
         }
         assert_eq!(16, output_messages.len()); // 8 note on/note off pairs
-        let expected_note_on = ScheduledMidiMessage::Immediate(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()));
-        let expected_note_off = ScheduledMidiMessage::Delayed(MidiMessage::NoteOff(0.into(), 60.into(), 0.into()), 92304.micros());
+        let expected_note_on =
+            ScheduledMidiMessage::Immediate(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()));
+        let expected_note_off = ScheduledMidiMessage::Delayed(
+            MidiMessage::NoteOff(0.into(), 60.into(), 0.into()),
+            92304.micros(),
+        );
         assert_eq!(expected_note_on, output_messages[0]);
         assert_eq!(expected_note_off, output_messages[1]);
         assert_eq!(expected_note_on, output_messages[2]);
@@ -275,7 +342,8 @@ mod tests {
     }
 
     #[test]
-    fn sequencer_advance_with_swing_enabled_should_output_delayed_note_on_messages_for_swung_steps() {
+    fn sequencer_advance_with_swing_enabled_should_output_delayed_note_on_messages_for_swung_steps()
+    {
         let mut now_us = 0;
         let mut sequencer = Sequencer::default();
         let generator = SequenceGenerator::default();
@@ -292,10 +360,20 @@ mod tests {
             now_us += DEFAULT_TICK_DURATION_US;
         }
         assert_eq!(16, output_messages.len()); // 8 note on/note off pairs
-        let expected_note_on = ScheduledMidiMessage::Immediate(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()));
-        let expected_note_on_with_swing = ScheduledMidiMessage::Delayed(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()), 9615.micros());
-        let expected_note_off = ScheduledMidiMessage::Delayed(MidiMessage::NoteOff(0.into(), 60.into(), 0.into()), 92304.micros());
-        let expected_note_off_with_swing = ScheduledMidiMessage::Delayed(MidiMessage::NoteOff(0.into(), 60.into(), 0.into()), (92304 + 9615).micros());
+        let expected_note_on =
+            ScheduledMidiMessage::Immediate(MidiMessage::NoteOn(0.into(), 60.into(), 127.into()));
+        let expected_note_on_with_swing = ScheduledMidiMessage::Delayed(
+            MidiMessage::NoteOn(0.into(), 60.into(), 127.into()),
+            9615.micros(),
+        );
+        let expected_note_off = ScheduledMidiMessage::Delayed(
+            MidiMessage::NoteOff(0.into(), 60.into(), 0.into()),
+            92304.micros(),
+        );
+        let expected_note_off_with_swing = ScheduledMidiMessage::Delayed(
+            MidiMessage::NoteOff(0.into(), 60.into(), 0.into()),
+            (92304 + 9615).micros(),
+        );
         assert_eq!(expected_note_on, output_messages[0]);
         assert_eq!(expected_note_off, output_messages[1]);
         assert_eq!(expected_note_on_with_swing, output_messages[2]);

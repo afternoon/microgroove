@@ -108,7 +108,7 @@ impl PerformView {
         }
         let title = match self.input_mode {
             InputMode::Track => "TRACK",
-            InputMode::Global => "GLOBAL",
+            InputMode::Sequence => "SEQUENCE",
             InputMode::Rhythm => "RHYTHM",
             InputMode::Groove => "GROOVE",
             InputMode::Melody => "MELODY",
