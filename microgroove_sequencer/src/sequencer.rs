@@ -177,7 +177,7 @@ impl Sequencer {
             if let Some(track) = track {
                 if let Some(step) = track.step_at_tick(self.tick) {
                     let note_on_message =
-                        MidiMessage::NoteOn(track.midi_channel, step.note, step.velocity);
+                        MidiMessage::NoteOn(track.midi_channel, step.note.into(), step.velocity);
                     if apply_swing {
                         output_messages
                             .push(ScheduledMidiMessage::Delayed(note_on_message, swing_delay))
@@ -189,7 +189,7 @@ impl Sequencer {
                     }
 
                     let note_off_message =
-                        MidiMessage::NoteOff(track.midi_channel, step.note, 0.into());
+                        MidiMessage::NoteOff(track.midi_channel, step.note.into(), 0.into());
                     let mut note_off_time = ((tick_duration.to_micros()
                         * (TimeDivision::division_length_24ppqn(track.time_division) as u64)
                         * step.length_step_cents as u64)

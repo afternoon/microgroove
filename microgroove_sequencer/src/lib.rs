@@ -10,6 +10,7 @@ pub mod sequencer;
 
 extern crate alloc;
 
+use midi::{Note, NoteError};
 use param::{Param, ParamList, ParamValue};
 use sequence_generator::SequenceGenerator;
 
@@ -17,9 +18,10 @@ use alloc::boxed::Box;
 use core::{
     cmp::Ordering,
     fmt::{Display, Formatter, Result as FmtResult},
+    slice::{Iter, IterMut},
 };
 use heapless::Vec;
-use midi_types::{Channel, Note, Value14, Value7}; // TODO switch to midi::Note
+use midi_types::{Channel, Value14, Value7};
 
 pub const TRACK_COUNT: usize = 8;
 
@@ -56,14 +58,14 @@ pub struct Step {
 }
 
 impl Step {
-    pub fn new(note: u8) -> Step {
-        Step {
-            note: note.into(),
+    pub fn new(note: u8) -> Result<Step, NoteError> {
+        Ok(Step {
+            note: note.try_into()?,
             velocity: 127.into(),
             pitch_bend: 0u16.into(),
             length_step_cents: 80,
             delay: 0,
-        }
+        })
     }
 }
 
@@ -102,17 +104,6 @@ pub enum TimeDivision {
 }
 
 impl TimeDivision {
-    pub fn all_variants() -> Vec<TimeDivision, 5> {
-        Vec::from_slice(&[
-            TimeDivision::ThirtySecond,
-            TimeDivision::Sixteenth,
-            TimeDivision::Eigth,
-            TimeDivision::Quarter,
-            TimeDivision::Whole,
-        ])
-        .unwrap()
-    }
-
     // TODO TryFrom
     pub fn from_id(id: &str) -> TimeDivision {
         match id {
@@ -168,33 +159,48 @@ impl TryFrom<u8> for TimeDivision {
     }
 }
 
-pub type Sequence = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
+type StepVec = Vec<Option<Step>, SEQUENCE_MAX_STEPS>;
 
-fn track_params() -> ParamList {
-    ParamList::from_slice(&[
-        Box::new(Param::new_rhythm_machine_id_param("RHYTHM")),
-        Box::new(Param::new_number_param(
-            "LEN",
-            TRACK_MIN_LENGTH,
-            TRACK_MAX_LENGTH,
-            TRACK_DEFAULT_LENGTH,
-        )),
-        Box::new(Param::new_number_param(
-            "TRACK",
-            TRACK_MIN_NUM,
-            TRACK_COUNT as u8,
-            TRACK_MIN_NUM,
-        )),
-        Box::new(Param::new_melody_machine_id_param("MELODY")),
-        Box::new(Param::new_time_division_param("SPD")),
-        Box::new(Param::new_number_param(
-            "CHAN",
-            MIDI_MIN_CHANNEL,
-            MIDI_MAX_CHANNEL,
-            MIDI_MIN_CHANNEL,
-        )),
-    ])
-    .unwrap()
+#[derive(Clone, Debug)]
+pub struct Sequence {
+    pub steps: StepVec,
+}
+
+impl Sequence {
+    pub fn new(steps: StepVec) -> Sequence {
+        Sequence { steps }
+    }
+
+    pub fn len(&self) -> usize { self.steps.len() }
+    pub fn iter(&self) -> Iter<Option<Step>> { self.steps.iter() }
+    pub fn iter_mut(&mut self) -> IterMut<Option<Step>> { self.steps.iter_mut() }
+    pub fn as_slice(&self) -> &[Option<Step>] { self.steps.as_slice() }
+    pub fn rotate_left(&mut self, amount: usize) { self.steps.rotate_left(amount); }
+    pub fn rotate_right(&mut self, amount: usize) { self.steps.rotate_right(amount); }
+
+    pub fn set_notes<I>(mut self, notes: I) -> Self where
+        I: IntoIterator<Item = Note> {
+        let mut notes = notes.into_iter();
+        for step in self.steps.iter_mut() {
+            let next_note = notes.next();
+            if let Some(step) = step {
+                step.note = next_note.unwrap();
+            }
+        }
+        self
+    }
+}
+
+impl PartialEq for Sequence {
+    fn eq(&self, other: &Self) -> bool {
+        self.steps == other.steps
+    }
+}
+
+impl FromIterator<Option<Step>> for Sequence {
+    fn from_iter<T>(steps: T) -> Self where T: IntoIterator<Item = Option<Step>> {
+        Sequence::new(StepVec::from_iter(steps))
+    }
 }
 
 #[derive(Debug)]
@@ -210,7 +216,7 @@ impl Default for Track {
     fn default() -> Track {
         let length = TRACK_DEFAULT_LENGTH;
         let sequence = SequenceGenerator::initial_sequence(length);
-        let params = track_params();
+        let params = Track::param_defintions();
         Track {
             time_division: Default::default(),
             length,
@@ -222,6 +228,33 @@ impl Default for Track {
 }
 
 impl Track {
+    fn param_defintions() -> ParamList {
+        ParamList::from_slice(&[
+            Box::new(Param::new_rhythm_machine_id_param("RHYTHM")),
+            Box::new(Param::new_number_param(
+                "LEN",
+                TRACK_MIN_LENGTH,
+                TRACK_MAX_LENGTH,
+                TRACK_DEFAULT_LENGTH,
+            )),
+            Box::new(Param::new_number_param(
+                "TRACK",
+                TRACK_MIN_NUM,
+                TRACK_COUNT as u8,
+                TRACK_MIN_NUM,
+            )),
+            Box::new(Param::new_melody_machine_id_param("MELODY")),
+            Box::new(Param::new_time_division_param("SPD")),
+            Box::new(Param::new_number_param(
+                "CHAN",
+                MIDI_MIN_CHANNEL,
+                MIDI_MAX_CHANNEL,
+                MIDI_MIN_CHANNEL,
+            )),
+        ])
+        .unwrap()
+    }
+
     pub fn params(&self) -> &ParamList {
         &self.params
     }
@@ -268,6 +301,7 @@ impl Track {
             return None;
         }
         self.sequence
+            .steps
             .get(self.step_num(tick) as usize)
             .unwrap()
             .as_ref()
@@ -289,14 +323,23 @@ mod tests {
 
     #[test]
     fn steps_are_correctly_ordered() {
-        let (s1, s2) = (Step::new(60), Step::new(61));
+        let (s1, s2) = (Step::new(60).unwrap(), Step::new(61).unwrap());
         assert!(s1 < s2);
     }
 
     #[test]
     fn track_default_generates_sequence_correctly() {
         let t = Track::default();
-        let expected: Sequence = (0..8).map(|_i| Some(Step::new(60))).collect();
+        let expected: Sequence = Sequence::new((0..8).map(|_i| Step::new(60).ok()).collect());
         assert_eq!(expected, t.sequence);
+    }
+
+    #[test]
+    fn sequence_set_notes_should_set_note_values_from_intoiterator() {
+        let seq = SequenceGenerator::initial_sequence(8);
+        let notes: [Note; 8] = [60, 61, 62, 63, 64, 65, 66, 67].map(|i| i.try_into().unwrap());
+        let seq = seq.set_notes(notes);
+        let result: Vec<Note, 8> = seq.iter().map(|step| step.as_ref().unwrap().note).collect();
+        assert_eq!(notes, result);
     }
 }

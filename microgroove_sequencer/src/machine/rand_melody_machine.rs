@@ -27,26 +27,19 @@ impl RandMelodyMachine {
     }
 
     fn process(
-        mut sequence: Sequence,
+        sequence: Sequence,
         machine_resources: &mut MachineResources,
         root: Note,
         range: u8,
     ) -> Sequence {
-        let root_note: u8 = root.into();
-        let max_note = root_note + range - 1;
+        let min_note = Into::<u8>::into(root) as i32;
+        let max_note: i32 = min_note + range as i32 - 1;
         let rand = machine_resources.random_u64();
-        let mut read_start_bit = 0;
-        for step in sequence.iter_mut() {
-            if let Some(step) = step {
-                let note_num = ((rand >> read_start_bit) & 127) as u8;
-                step.note =
-                    (map_to_range(note_num as i32, 0, 127, root_note as i32, max_note as i32)
-                        as u8)
-                        .into();
-                read_start_bit += 1;
-            }
-        }
-        sequence
+        let notes = (0..8)
+            .map(|i| ((rand >> i) & 127) as i32)
+            .map(|rand_note_num| map_to_range(rand_note_num, 0, 127, min_note, max_note) as u8)
+            .map(|note_num| note_num.try_into().expect("note number should go into note"));
+        sequence.set_notes(notes)
     }
 }
 

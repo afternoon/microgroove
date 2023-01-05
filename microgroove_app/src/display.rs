@@ -149,7 +149,7 @@ impl PerformView {
         let step_size = Size::new(step_width, step_height);
         let mut step_num: u8 = 0;
 
-        for step in sequence {
+        for step in &sequence.steps {
             let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
             let x2 = x + step_width as i32;
 
@@ -290,7 +290,7 @@ fn draw_disabled_track_warning(display: &mut Display) -> DisplayResult {
 fn note_min_max_as_u8s(sequence: &Sequence) -> (u8, u8) {
     let mut min = 127;
     let mut max = 0;
-    for step in sequence {
+    for step in &sequence.steps {
         if let Some(step) = step {
             let note: u8 = step.note.into();
             min = note.min(min);

@@ -24,10 +24,15 @@ impl Into<u8> for Note {
     }
 }
 
-impl TryFrom<u8> for Note {
-    type Error = ();
+#[derive(Debug)]
+pub enum NoteError {
+    InvalidNoteNumber
+}
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+impl TryFrom<u8> for Note {
+    type Error = NoteError;
+
+    fn try_from(value: u8) -> Result<Self, NoteError> {
         match value {
             0 => Ok(Note::CMinus2),
             1 => Ok(Note::CSharpMinus2),
@@ -157,7 +162,7 @@ impl TryFrom<u8> for Note {
             125 => Ok(Note::F8),
             126 => Ok(Note::FSharp8),
             127 => Ok(Note::G8),
-            _ => Err(()),
+            _ => Err(NoteError::InvalidNoteNumber),
         }
     }
 }

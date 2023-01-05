@@ -34,7 +34,7 @@ impl Default for SequenceGenerator {
 
 impl SequenceGenerator {
     pub fn initial_sequence(length: u8) -> Sequence {
-        (0..length).map(|_i| Some(Step::new(60))).collect()
+        (0..length).map(|_i| Step::new(60).ok()).collect()
     }
 
     /// Generate a sequence by piping the initial sequence through the set of configured machines.
@@ -123,8 +123,8 @@ mod tests {
         params[1].set(ParamValue::Key(Key::B));
         let mut machine_resources = MachineResources::new();
         let sequence = generator.generate(8, &mut machine_resources);
-        assert!(sequence[0].is_some());
-        let step0 = sequence[0].as_ref().unwrap();
+        assert!(sequence.steps[0].is_some());
+        let step0 = sequence.steps[0].as_ref().unwrap();
         let step0_note_num: u8 = step0.note.into();
         let expected: u8 = Note::CSharp3.into();
         assert_eq!(expected, step0_note_num); // exp
