@@ -171,15 +171,29 @@ impl Sequence {
         Sequence { steps }
     }
 
-    pub fn len(&self) -> usize { self.steps.len() }
-    pub fn iter(&self) -> Iter<Option<Step>> { self.steps.iter() }
-    pub fn iter_mut(&mut self) -> IterMut<Option<Step>> { self.steps.iter_mut() }
-    pub fn as_slice(&self) -> &[Option<Step>] { self.steps.as_slice() }
-    pub fn rotate_left(&mut self, amount: usize) { self.steps.rotate_left(amount); }
-    pub fn rotate_right(&mut self, amount: usize) { self.steps.rotate_right(amount); }
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
+    pub fn iter(&self) -> Iter<Option<Step>> {
+        self.steps.iter()
+    }
+    pub fn iter_mut(&mut self) -> IterMut<Option<Step>> {
+        self.steps.iter_mut()
+    }
+    pub fn as_slice(&self) -> &[Option<Step>] {
+        self.steps.as_slice()
+    }
+    pub fn rotate_left(&mut self, amount: usize) {
+        self.steps.rotate_left(amount);
+    }
+    pub fn rotate_right(&mut self, amount: usize) {
+        self.steps.rotate_right(amount);
+    }
 
-    pub fn set_notes<I>(mut self, notes: I) -> Self where
-        I: IntoIterator<Item = Note> {
+    pub fn set_notes<I>(mut self, notes: I) -> Self
+    where
+        I: IntoIterator<Item = Note>,
+    {
         let mut notes = notes.into_iter();
         for step in self.steps.iter_mut() {
             let next_note = notes.next();
@@ -198,7 +212,10 @@ impl PartialEq for Sequence {
 }
 
 impl FromIterator<Option<Step>> for Sequence {
-    fn from_iter<T>(steps: T) -> Self where T: IntoIterator<Item = Option<Step>> {
+    fn from_iter<T>(steps: T) -> Self
+    where
+        T: IntoIterator<Item = Option<Step>>,
+    {
         Sequence::new(StepVec::from_iter(steps))
     }
 }

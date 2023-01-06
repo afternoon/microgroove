@@ -38,7 +38,11 @@ impl RandMelodyMachine {
         let notes = (0..8)
             .map(|i| ((rand >> i) & 127) as i32)
             .map(|rand_note_num| map_to_range(rand_note_num, 0, 127, min_note, max_note) as u8)
-            .map(|note_num| note_num.try_into().expect("note number should go into note"));
+            .map(|note_num| {
+                note_num
+                    .try_into()
+                    .expect("note number should go into note")
+            });
         sequence.set_notes(notes)
     }
 }

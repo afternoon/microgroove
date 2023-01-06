@@ -26,7 +26,7 @@ impl Into<u8> for Note {
 
 #[derive(Debug)]
 pub enum NoteError {
-    InvalidNoteNumber
+    InvalidNoteNumber,
 }
 
 impl TryFrom<u8> for Note {
