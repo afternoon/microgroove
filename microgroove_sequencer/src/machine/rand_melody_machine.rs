@@ -35,7 +35,7 @@ impl RandMelodyMachine {
         let min_note = Into::<u8>::into(root) as i32;
         let max_note: i32 = min_note + range as i32 - 1;
         let rand = machine_resources.random_u64();
-        let notes = (0..8)
+        let notes = (0..sequence.len())
             .map(|i| ((rand >> i) & 127) as i32)
             .map(|rand_note_num| map_to_range(rand_note_num, 0, 127, min_note, max_note) as u8)
             .map(|note_num| {
