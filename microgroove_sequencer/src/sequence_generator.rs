@@ -2,7 +2,7 @@ use crate::{
     machine::unit_machine::UnitMachine,
     machine::Machine,
     machine_resources::MachineResources,
-    param::{Param, ParamList, ParamValue},
+    param::{Param, ParamList},
     quantizer::quantize,
     Sequence, Step,
 };
@@ -64,21 +64,16 @@ impl SequenceGenerator {
         &mut self.harmony_params
     }
 
-    fn apply_quantizer(&self, mut sequence: Sequence) -> Sequence {
-        let scale = match self.harmony_params[0].value() {
-            ParamValue::Scale(scale) => scale,
-            _ => panic!("unexpected scale value for quantizer"),
-        };
-        let key = match self.harmony_params[1].value() {
-            ParamValue::Key(key) => key,
-            _ => panic!("unexpected key value for quantizer"),
-        };
-        for step in sequence.iter_mut() {
-            if let Some(step) = step {
-                step.note = quantize(step.note.into(), scale, key).into();
-            }
-        }
-        sequence
+    fn apply_quantizer(&self, sequence: Sequence) -> Sequence {
+        let scale = self.harmony_params[0]
+            .value()
+            .try_into()
+            .expect("unexpected scale value for quantizer");
+        let key = self.harmony_params[1]
+            .value()
+            .try_into()
+            .expect("unexpected key value for quantizer");
+        sequence.map_notes(|note| quantize(note.into(), scale, key).into())
     }
 }
 
@@ -86,6 +81,7 @@ impl SequenceGenerator {
 mod tests {
     use crate::{
         midi::Note,
+        param::ParamValue,
         quantizer::{Key, Scale},
     };
 

@@ -1,10 +1,11 @@
 use crate::encoder::encoder_array::ENCODER_COUNT;
 use microgroove_sequencer::{
-    Track, TRACK_COUNT,
+    machine::{MelodyMachineId, RhythmMachineId},
+    machine_resources::MachineResources,
     param::{wrapping_add, ParamValue, ParamList, ParamError},
     sequencer::Sequencer,
-    machine_resources::MachineResources,
     sequence_generator::SequenceGenerator,
+    Track, TRACK_COUNT,
 };
 
 use core::iter::zip;
@@ -57,7 +58,7 @@ pub fn apply_encoder_values(
             if melody_machine_changed(input_mode, &encoder_values) {
                 update_melody_machine(generator, params[3].value())
             }
-            track.apply_params();
+            track.apply_params()?;
         }
         InputMode::Sequence => {
             update_params(&encoder_values, sequencer.params_mut())?;
@@ -148,21 +149,17 @@ fn update_params(encoder_values: &EncoderValues, params: &mut ParamList) -> Resu
 }
 
 fn update_rhythm_machine(generator: &mut SequenceGenerator, param_value: ParamValue) {
-    match param_value {
-        ParamValue::RhythmMachineId(machine_id) => {
-            generator.rhythm_machine = machine_id.into()
-        }
-        unexpected => panic!("unexpected rhythm machine param: {:?}", unexpected)
-    };
+    let id: RhythmMachineId = param_value
+        .try_into()
+        .expect("unexpected rhythm machine param");
+    generator.rhythm_machine = id.into();
 }
 
 fn update_melody_machine(generator: &mut SequenceGenerator, param_value: ParamValue) {
-    match param_value {
-        ParamValue::MelodyMachineId(machine_id) => {
-            generator.melody_machine = machine_id.into()
-        }
-        unexpected => panic!("unexpected melody machine param: {:?}", unexpected)
-    }
+    let id: MelodyMachineId = param_value
+        .try_into()
+        .expect("unexpected melody machine param");
+    generator.melody_machine = id.into();
 }
 
 fn update_sequence(sequencer: &mut Sequencer, track_num: &u8, generator: &SequenceGenerator, machine_resources: &mut MachineResources) {

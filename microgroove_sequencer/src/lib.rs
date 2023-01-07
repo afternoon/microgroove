@@ -11,7 +11,7 @@ pub mod sequencer;
 extern crate alloc;
 
 use midi::{Note, NoteError};
-use param::{Param, ParamList, ParamValue};
+use param::{Param, ParamError, ParamList};
 use sequence_generator::SequenceGenerator;
 
 use alloc::boxed::Box;
@@ -183,11 +183,24 @@ impl Sequence {
     pub fn as_slice(&self) -> &[Option<Step>] {
         self.steps.as_slice()
     }
-    pub fn rotate_left(&mut self, amount: usize) {
+
+    pub fn rotate_left(mut self, amount: usize) -> Sequence {
         self.steps.rotate_left(amount);
+        self
     }
-    pub fn rotate_right(&mut self, amount: usize) {
+
+    pub fn rotate_right(mut self, amount: usize) -> Sequence {
         self.steps.rotate_right(amount);
+        self
+    }
+
+    pub fn map_notes(mut self, mut f: impl FnMut(Note) -> Note) -> Self {
+        for step in self.steps.iter_mut() {
+            if let Some(step) = step {
+                step.note = f(step.note);
+            }
+        }
+        self
     }
 
     pub fn set_notes<I>(mut self, notes: I) -> Self
@@ -199,6 +212,19 @@ impl Sequence {
             let next_note = notes.next();
             if let Some(step) = step {
                 step.note = next_note.unwrap();
+            }
+        }
+        self
+    }
+
+    pub fn activate_steps<I>(mut self, active_steps: I) -> Self
+    where
+        I: IntoIterator<Item = bool>,
+    {
+        let steps_is_active_pairs = self.steps.iter_mut().zip(active_steps);
+        for (step, is_active) in steps_is_active_pairs {
+            if !is_active {
+                step.take();
             }
         }
         self
@@ -280,28 +306,15 @@ impl Track {
         &mut self.params
     }
 
-    pub fn apply_params(&mut self) {
+    pub fn apply_params(&mut self) -> Result<(), ParamError> {
         // params 0 (rhythm machine), 2 (track number) and 3 (melody machine) are intentionally ignored
         // they are "virtual parameters" which don't actually relate to a `Track` at all. They're
         // handled by microgroove_app::input::map_encoder_values directly.
-        match self.params[1].value() {
-            ParamValue::Number(length) => {
-                self.length = length;
-            }
-            unexpected => panic!("unexpected track param[1]: {:?}", unexpected),
-        };
-        match self.params[4].value() {
-            ParamValue::TimeDivision(time_division) => {
-                self.time_division = time_division;
-            }
-            unexpected => panic!("unexpected track param[4]: {:?}", unexpected),
-        }
-        match self.params[5].value() {
-            ParamValue::Number(midi_channel) => {
-                self.midi_channel = (midi_channel - 1).into();
-            }
-            unexpected => panic!("unexpected track param[5]: {:?}", unexpected),
-        };
+        self.length = self.params[1].value().try_into()?;
+        self.time_division = self.params[4].value().try_into()?;
+        let channel_num: u8 = self.params[5].value().try_into()?;
+        self.midi_channel = channel_num.into();
+        Ok(())
     }
 
     pub fn should_play_on_tick(&self, tick: u32) -> bool {

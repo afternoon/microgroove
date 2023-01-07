@@ -2,7 +2,7 @@
 use super::Machine;
 use crate::{
     machine_resources::MachineResources,
-    param::{Param, ParamList, ParamValue},
+    param::{Param, ParamList},
     Sequence,
 };
 
@@ -61,23 +61,18 @@ impl EuclideanRhythmMachine {
     }
 
     fn process(
-        mut sequence: Sequence,
+        sequence: Sequence,
         _machine_resources: &mut MachineResources,
         notes: u8,
         rotate: u8,
     ) -> Sequence {
-        let steps = sequence.len() as u8;
-        let notes = notes.min(steps);
-        let rotate = rotate % steps;
-        let address = ((steps as usize - 1) * 32) + (notes as usize - 1);
+        let steps = sequence.len();
+        let notes = (notes as usize).min(steps);
+        let address = ((steps - 1) * 32) + (notes - 1);
         let pattern_bits = EUCLIDEAN_LUT[address];
-        for (i, step) in sequence.iter_mut().enumerate() {
-            if (pattern_bits >> (steps as usize - i - 1)) & 1 == 0 {
-                step.take();
-            }
-        }
-        sequence.rotate_right(rotate.into());
-        sequence
+        let active_steps = (0..sequence.len()).map(|i| (pattern_bits >> (steps - i - 1)) & 1 == 1);
+        let rotate = rotate % steps as u8;
+        sequence.activate_steps(active_steps).rotate_right(rotate.into())
     }
 }
 
@@ -95,20 +90,14 @@ impl Machine for EuclideanRhythmMachine {
     }
 
     fn apply(&self, sequence: Sequence, machine_resources: &mut MachineResources) -> Sequence {
-        let notes = match self.params[0].value() {
-            ParamValue::Number(num) => num,
-            unexpected => panic!(
-                "EuclideanRhythmMachine got unexpected notes param: {:?}",
-                unexpected
-            ),
-        };
-        let rotate = match self.params[1].value() {
-            ParamValue::Number(num) => num,
-            unexpected => panic!(
-                "EuclideanRhythmMachine got unexpected rotate param: {:?}",
-                unexpected
-            ),
-        };
+        let notes = self.params[0]
+            .value()
+            .try_into()
+            .expect("unexpected notes param for EuclideanRhythmMachine");
+        let rotate = self.params[1]
+            .value()
+            .try_into()
+            .expect("unexpected rotate param for EuclideanRhythmMachine");
         Self::process(sequence, machine_resources, notes, rotate)
     }
 }
@@ -128,9 +117,10 @@ mod tests {
             SequenceGenerator::initial_sequence(8),
             &mut machine_resources,
         );
-        assert!(matches!(
-            output_sequence.as_slice(),
-            [Some(_), None, None, Some(_), None, None, Some(_), None]
-        ));
+        let active_steps: Vec<bool> = output_sequence.iter().map(|opt| opt.is_some()).collect();
+        assert_eq!(
+            active_steps,
+            [true, false, false, true, false, false, true, false]
+        );
     }
 }

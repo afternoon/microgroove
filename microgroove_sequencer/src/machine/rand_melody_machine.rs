@@ -4,7 +4,7 @@ use crate::{
     machine_resources::MachineResources,
     map_to_range,
     midi::Note,
-    param::{Param, ParamList, ParamValue},
+    param::{Param, ParamList},
     Sequence,
 };
 
@@ -35,15 +35,15 @@ impl RandMelodyMachine {
         let min_note = Into::<u8>::into(root) as i32;
         let max_note: i32 = min_note + range as i32 - 1;
         let rand = machine_resources.random_u64();
-        let notes = (0..sequence.len())
-            .map(|i| ((rand >> i) & 127) as i32)
-            .map(|rand_note_num| map_to_range(rand_note_num, 0, 127, min_note, max_note) as u8)
-            .map(|note_num| {
-                note_num
-                    .try_into()
-                    .expect("note number should go into note")
-            });
-        sequence.set_notes(notes)
+        let mut i = 0;
+        sequence.map_notes(|_| {
+            let rand_note_num = ((rand >> i) & 127) as i32;
+            let note_num = map_to_range(rand_note_num, 0, 127, min_note, max_note) as u8;
+            i += 1;
+            note_num
+                .try_into()
+                .expect("note number should go into note")
+        })
     }
 }
 
@@ -61,20 +61,14 @@ impl Machine for RandMelodyMachine {
     }
 
     fn apply(&self, sequence: Sequence, machine_resources: &mut MachineResources) -> Sequence {
-        let root = match self.params[0].value() {
-            ParamValue::Note(note) => note,
-            unexpected => panic!(
-                "RandMelodyMachine got unexpected root param: {:?}",
-                unexpected
-            ),
-        };
-        let range = match self.params[1].value() {
-            ParamValue::Number(i) => i,
-            unexpected => panic!(
-                "RandMelodyMachine got unexpected range param: {:?}",
-                unexpected
-            ),
-        };
+        let root = self.params[0]
+            .value()
+            .try_into()
+            .expect("unexpected root param for RandMelodyMachine");
+        let range = self.params[1]
+            .value()
+            .try_into()
+            .expect("unexpected range param for RandMelodyMachine");
         Self::process(sequence, machine_resources, root, range)
     }
 }

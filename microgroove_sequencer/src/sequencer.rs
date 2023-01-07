@@ -147,10 +147,10 @@ impl Sequencer {
     }
 
     pub fn swing(&self) -> Swing {
-        match self.params[0].value() {
-            ParamValue::Swing(swing) => swing,
-            unexpected => panic!("unexpected sequencer param[0]: {:?}", unexpected),
-        }
+        self.params[0]
+            .value()
+            .try_into()
+            .expect("invalid swing parameter for sequencer")
     }
 
     pub fn set_swing(&mut self, swing: Swing) {

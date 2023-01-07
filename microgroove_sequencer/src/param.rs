@@ -17,25 +17,6 @@ pub fn wrapping_add(a: i32, b: i32, max: i32) -> i32 {
     ((a + b % size) + size) % size
 }
 
-// TODO now we have TryFrom/Into implementations for all types that are used as param values (u8,
-// some enum), we don't need to tag the value twice, we can just manipulate params as u8s and call
-// try_from or into where necessary. This is more ergonomic in both the implementation and as an
-// API, because it removes the need for a match block.
-//
-// E.g.
-//
-//     let time_div = match param.value() {
-//         ParamValue::TimeDivision(time_div) => time_div,
-//         unexpected => panic!("unexpected param value"),
-//     };
-//
-// Becomes:
-//
-//     let time_div: TimeDivision = param.value().try_into().unwrap();
-//
-// Which is nice.
-//
-// Refactoring is a medium task. Code here needs to change + ~6 call sites.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ParamValue {
     Number(u8),
@@ -82,7 +63,8 @@ type ParamName = String<6>;
 
 #[derive(Debug)]
 pub enum ParamError {
-    ValueError,
+    ValueOutOfRange,
+    UnexpectedValue(ParamValue),
 }
 
 #[derive(Clone, Debug)]
@@ -191,31 +173,31 @@ impl Param {
             ParamValue::TimeDivision(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::TimeDivision(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
             ParamValue::RhythmMachineId(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::RhythmMachineId(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
             ParamValue::MelodyMachineId(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::MelodyMachineId(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
             ParamValue::Note(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::Note(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
             ParamValue::Scale(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::Scale(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
             ParamValue::Key(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::Key(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
             ParamValue::Swing(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::Swing(val))
-                .map_err(|_| ParamError::ValueError)?,
+                .map_err(|_| ParamError::ValueOutOfRange)?,
         };
         Ok(())
     }
@@ -226,6 +208,94 @@ impl Param {
         let max_i32: i32 = self.max.into();
         let new_value = (wrapping_add(value_i32 - min_i32, n, max_i32 - min_i32) + min_i32) as u8;
         self.set_from_u8(new_value)
+    }
+}
+
+impl TryInto<u8> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<u8, Self::Error> {
+        match self {
+            ParamValue::Number(num) => Ok(num),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<TimeDivision> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<TimeDivision, Self::Error> {
+        match self {
+            ParamValue::TimeDivision(time_div) => Ok(time_div),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<RhythmMachineId> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<RhythmMachineId, Self::Error> {
+        match self {
+            ParamValue::RhythmMachineId(id) => Ok(id),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<MelodyMachineId> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<MelodyMachineId, Self::Error> {
+        match self {
+            ParamValue::MelodyMachineId(id) => Ok(id),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<Note> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<Note, Self::Error> {
+        match self {
+            ParamValue::Note(note) => Ok(note),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<Scale> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<Scale, Self::Error> {
+        match self {
+            ParamValue::Scale(scale) => Ok(scale),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<Key> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<Key, Self::Error> {
+        match self {
+            ParamValue::Key(key) => Ok(key),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<Swing> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<Swing, Self::Error> {
+        match self {
+            ParamValue::Swing(swing) => Ok(swing),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
     }
 }
 
@@ -245,54 +315,38 @@ mod tests {
     fn param_number_should_increment() {
         let mut param_number = Param::new_number_param("NUM", 0, 10, 0);
         param_number.increment(1).unwrap();
-        match param_number.value() {
-            ParamValue::Number(i) => assert_eq!(1, i),
-            _ => panic!("unexpected param value"),
-        }
+        assert_eq!(1, param_number.value().try_into().unwrap())
     }
 
     #[test]
     fn param_number_starting_at_1_should_increment() {
         let mut param_number = Param::new_number_param("NUM", 1, 10, 1);
         param_number.increment(1).unwrap();
-        match param_number.value() {
-            ParamValue::Number(i) => assert_eq!(2, i),
-            _ => panic!("unexpected param value"),
-        }
+        assert_eq!(2, param_number.value().try_into().unwrap());
         param_number.increment(10).unwrap();
-        match param_number.value() {
-            ParamValue::Number(i) => assert_eq!(2, i),
-            _ => panic!("unexpected param value"),
-        }
+        assert_eq!(2, param_number.value().try_into().unwrap());
         param_number.increment(-5).unwrap();
-        match param_number.value() {
-            ParamValue::Number(i) => assert_eq!(7, i),
-            _ => panic!("unexpected param value"),
-        }
+        assert_eq!(7, param_number.value().try_into().unwrap());
     }
 
     #[test]
     fn param_time_division_should_increment() {
         let mut param_time_div = Param::new_time_division_param("SPD");
         param_time_div.increment(1).unwrap();
-        assert_param_time_division(TimeDivision::Eigth, &param_time_div);
+        assert_eq!(TimeDivision::Eigth, param_time_div.value().try_into().unwrap());
         param_time_div.increment(9).unwrap();
-        assert_param_time_division(TimeDivision::Sixteenth, &param_time_div);
+        assert_eq!(TimeDivision::Sixteenth, param_time_div.value().try_into().unwrap());
         param_time_div.increment(-1).unwrap();
-        assert_param_time_division(TimeDivision::ThirtySecond, &param_time_div);
+        assert_eq!(TimeDivision::ThirtySecond, param_time_div.value().try_into().unwrap());
         param_time_div.increment(-11).unwrap();
-        assert_param_time_division(TimeDivision::Whole, &param_time_div);
+        assert_eq!(TimeDivision::Whole, param_time_div.value().try_into().unwrap());
     }
 
     #[test]
     fn param_enum_value_should_have_to_string() {
         let param_time_div = Param::new_time_division_param("SPD");
-        match param_time_div.value() {
-            ParamValue::TimeDivision(time_division) => {
-                assert_eq!("1/16", time_division.to_string())
-            }
-            _ => panic!("unexpected param value"),
-        }
+        let value: TimeDivision = param_time_div.value().try_into().unwrap();
+        assert_eq!("1/16", value.to_string());
     }
 
     #[test]
@@ -307,10 +361,7 @@ mod tests {
     fn param_value_can_be_set() {
         let mut param_number = Param::new_number_param("NUM", 0, 10, 0);
         param_number.set(ParamValue::Number(1));
-        match param_number.value() {
-            ParamValue::Number(i) => assert_eq!(1, i),
-            _ => panic!("unexpected param value"),
-        }
+        assert_eq!(1, param_number.value().try_into().unwrap())
     }
 
     #[test]
@@ -327,12 +378,5 @@ mod tests {
     fn param_value_cant_be_set_to_different_paramvalue_variant() {
         let mut param_number = Param::new_number_param("NUM", 0, 10, 0);
         param_number.set(ParamValue::TimeDivision(TimeDivision::Sixteenth));
-    }
-
-    fn assert_param_time_division(expected: TimeDivision, param: &Param) {
-        match param.value() {
-            ParamValue::TimeDivision(time_div) => assert_eq!(expected, time_div),
-            other => panic!("unexpected param value {:?}", other),
-        }
     }
 }
