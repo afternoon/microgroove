@@ -4,6 +4,7 @@ use core::cmp::PartialEq;
 use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use heapless::{String, Vec};
 
+use crate::machine::grids_rhythm_machine::Instrument;
 use crate::sequencer::Swing;
 use crate::{
     machine::{MelodyMachineId, RhythmMachineId},
@@ -27,6 +28,7 @@ pub enum ParamValue {
     Scale(Scale),
     Key(Key),
     Swing(Swing),
+    Instrument(Instrument),
 }
 
 impl Display for ParamValue {
@@ -40,6 +42,7 @@ impl Display for ParamValue {
             ParamValue::Scale(scale) => Display::fmt(&scale, f),
             ParamValue::Key(key) => Display::fmt(&key, f),
             ParamValue::Swing(swing) => Display::fmt(&swing, f),
+            ParamValue::Instrument(instrument) => Display::fmt(&instrument, f),
         }
     }
 }
@@ -55,6 +58,7 @@ impl From<ParamValue> for i32 {
             ParamValue::Scale(scale) => scale as i32,
             ParamValue::Key(key) => key as i32,
             ParamValue::Swing(swing) => swing as i32,
+            ParamValue::Instrument(instrument) => instrument as i32,
         }
     }
 }
@@ -151,6 +155,15 @@ impl Param {
         }
     }
 
+    pub fn new_instrument_param(name: &str) -> Param {
+        Param {
+            name: name.into(),
+            value: ParamValue::Instrument(Instrument::default()),
+            min: ParamValue::Instrument(Instrument::BD),
+            max: ParamValue::Instrument(Instrument::HH),
+        }
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -197,6 +210,10 @@ impl Param {
             ParamValue::Swing(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::Swing(val))
+                .map_err(|_| ParamError::ValueOutOfRange)?,
+            ParamValue::Instrument(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::Instrument(val))
                 .map_err(|_| ParamError::ValueOutOfRange)?,
         };
         Ok(())
@@ -299,6 +316,17 @@ impl TryInto<Swing> for ParamValue {
     }
 }
 
+impl TryInto<Instrument> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<Instrument, Self::Error> {
+        match self {
+            ParamValue::Instrument(instrument) => Ok(instrument),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
 pub type ParamList = Vec<Box<Param>, 6>;
 
 #[cfg(test)]
@@ -333,13 +361,25 @@ mod tests {
     fn param_time_division_should_increment() {
         let mut param_time_div = Param::new_time_division_param("SPD");
         param_time_div.increment(1).unwrap();
-        assert_eq!(TimeDivision::Eigth, param_time_div.value().try_into().unwrap());
+        assert_eq!(
+            TimeDivision::Eigth,
+            param_time_div.value().try_into().unwrap()
+        );
         param_time_div.increment(9).unwrap();
-        assert_eq!(TimeDivision::Sixteenth, param_time_div.value().try_into().unwrap());
+        assert_eq!(
+            TimeDivision::Sixteenth,
+            param_time_div.value().try_into().unwrap()
+        );
         param_time_div.increment(-1).unwrap();
-        assert_eq!(TimeDivision::ThirtySecond, param_time_div.value().try_into().unwrap());
+        assert_eq!(
+            TimeDivision::ThirtySecond,
+            param_time_div.value().try_into().unwrap()
+        );
         param_time_div.increment(-11).unwrap();
-        assert_eq!(TimeDivision::Whole, param_time_div.value().try_into().unwrap());
+        assert_eq!(
+            TimeDivision::Whole,
+            param_time_div.value().try_into().unwrap()
+        );
     }
 
     #[test]

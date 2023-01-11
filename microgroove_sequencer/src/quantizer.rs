@@ -208,7 +208,10 @@ pub fn quantize(note: Note, scale: Scale, key: Key) -> Note {
     let interval_map: ScaleMap = scale.into();
     let quantized_degree = interval_map[degree as usize] as u8;
     let quantized_note_num = ((quantized_degree + octave * 12) - offset) as u8;
-    quantized_note_num.min(127).try_into().expect("note number should be valid note")
+    quantized_note_num
+        .min(127)
+        .try_into()
+        .expect("note number should be valid note")
 }
 
 #[cfg(test)]

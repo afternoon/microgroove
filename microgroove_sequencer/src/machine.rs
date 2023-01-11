@@ -5,10 +5,12 @@ use heapless::String;
 use crate::{machine_resources::MachineResources, param::ParamList, Sequence};
 
 pub mod euclidean_rhythm_machine;
+pub mod grids_rhythm_machine;
 pub mod rand_melody_machine;
 pub mod unit_machine;
 
 use euclidean_rhythm_machine::EuclideanRhythmMachine;
+use grids_rhythm_machine::GridsRhythmMachine;
 use rand_melody_machine::RandMelodyMachine;
 use unit_machine::UnitMachine;
 
@@ -20,7 +22,7 @@ pub enum MachineError {
 /// A `Machine` represents a sequence generator that can be controlled via a list of parameters. In
 /// Microgroove, each `Track` has 2 machines, one to generate the rhythm, one for the melody.
 pub trait Machine: Debug + Send {
-    fn name(&self) -> &str;
+    fn name(&self) -> &str; // TODO redundant because Display implmented for machine IDs
     fn apply(&self, sequence: Sequence, machine_resources: &mut MachineResources) -> Sequence;
     fn params(&self) -> &ParamList;
     fn params_mut(&mut self) -> &mut ParamList;
@@ -31,6 +33,7 @@ pub enum RhythmMachineId {
     #[default]
     Unit,
     Euclid,
+    Grids,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -45,6 +48,7 @@ impl From<RhythmMachineId> for Box<dyn Machine> {
         match value {
             RhythmMachineId::Unit => Box::new(UnitMachine::new()),
             RhythmMachineId::Euclid => Box::new(EuclideanRhythmMachine::new()),
+            RhythmMachineId::Grids => Box::new(GridsRhythmMachine::new()),
         }
     }
 }
@@ -63,6 +67,7 @@ impl Display for RhythmMachineId {
         match self {
             RhythmMachineId::Unit => Display::fmt("UNIT", f),
             RhythmMachineId::Euclid => Display::fmt("EUCLID", f),
+            RhythmMachineId::Grids => Display::fmt("GRIDS", f),
         }
     }
 }
@@ -83,6 +88,7 @@ impl TryFrom<u8> for RhythmMachineId {
         match value {
             0 => Ok(RhythmMachineId::Unit),
             1 => Ok(RhythmMachineId::Euclid),
+            2 => Ok(RhythmMachineId::Grids),
             _ => Err(()),
         }
     }
