@@ -1,6 +1,10 @@
 /// Rendering UI graphics to the display.
 use crate::{input::InputMode, peripherals::Display};
-use microgroove_sequencer::{map_to_range, Sequence};
+use microgroove_sequencer::{
+    part::Part,
+    map_to_range,
+    Sequence
+};
 
 use core::{fmt::Write, iter::zip, str::FromStr};
 use display_interface::DisplayError;
@@ -68,6 +72,7 @@ pub struct PerformView {
     pub playing: bool,
     pub track_num: u8,
     pub sequence: Option<Sequence>,
+    pub part: Part,
     pub active_step_num: Option<u8>,
     pub machine_name: Option<String<10>>,
     pub param_data: Option<ParamData>,
@@ -139,7 +144,8 @@ impl PerformView {
     fn draw_sequence(&self, display: &mut Display) -> DisplayResult {
         let sequence = self.sequence.as_ref().unwrap();
         let length = sequence.len();
-        let step_width: u32 = if length <= 17 { 6 } else { 3 };
+        let part_mask = Part::new_mask(self.part, length);
+        let step_width: u32 = if length <= 16 { 6 } else { 3 };
         let step_height: u32 = step_width;
         let display_sequence_margin_left =
             (DISPLAY_WIDTH - ((length as i32) * ((step_width as i32) + 1))) / 2;
@@ -148,13 +154,15 @@ impl PerformView {
         let note_y_pos_max: u32 = 9 + step_height as u32;
         let step_size = Size::new(step_width, step_height);
         let mut step_num: u8 = 0;
+        let stroke = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
 
-        for step in &sequence.steps {
+        for (step, &masked) in sequence.steps.iter().zip(part_mask.iter()) {
             let x = display_sequence_margin_left + (step_num as i32 * (step_width as i32 + 1));
             let x2 = x + step_width as i32;
 
             // draw step
             if let Some(step) = step {
+                // draw step indicator
                 let note_num: u8 = step.note.into();
                 let y = map_to_range(
                     note_num as i32,
@@ -163,7 +171,6 @@ impl PerformView {
                     note_y_pos_min as i32,
                     note_y_pos_max as i32,
                 );
-
                 let step_style = if step_num == self.active_step_num.unwrap() {
                     outline_style()
                 } else {
@@ -172,14 +179,25 @@ impl PerformView {
                 Rectangle::new(Point::new(x as i32, y as i32), step_size)
                     .into_styled(step_style)
                     .draw(display)?;
+
+                // draw velocity tick
+                    let velocity: u8 = step.velocity.into();
+                    let velocity_tick_height = velocity >> 5;
+                    Line::new(
+                        Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
+                        Point::new(x, SEQUENCE_UNDERLINE_Y_POS - velocity_tick_height as i32),
+                    )
+                    .into_styled(stroke)
+                    .draw(display)?;
             }
 
             // draw step underline
+            let (underline_start, underline_finish) = if masked { (x, x2 - 1) } else { (x + 2, x2 - 4) };
             Line::new(
-                Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
-                Point::new(x2 - 1, SEQUENCE_UNDERLINE_Y_POS),
+                Point::new(underline_start, SEQUENCE_UNDERLINE_Y_POS),
+                Point::new(underline_finish, SEQUENCE_UNDERLINE_Y_POS),
             )
-            .into_styled(PrimitiveStyle::with_stroke(BinaryColor::On, 1))
+            .into_styled(stroke)
             .draw(display)?;
 
             step_num += 1;

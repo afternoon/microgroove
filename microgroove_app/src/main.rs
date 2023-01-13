@@ -367,11 +367,12 @@ mod app {
         (ctx.shared.input_mode, ctx.shared.current_track, ctx.shared.sequencer, ctx.shared.sequence_generators).lock(|input_mode, current_track, sequencer, sequence_generators| {
             let tick = sequencer.tick();
             let maybe_track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut();
+            let generator = sequence_generators.get(*current_track as usize).unwrap();
+            let part = generator.part();
             let view = match maybe_track {
                 Some(track) => {
                     let sequence = Some(track.sequence.clone());
                     let active_step_num = Some(track.step_num(tick));
-                    let generator = sequence_generators.get(*current_track as usize).unwrap();
                     let machine_name = match input_mode {
                         InputMode::Rhythm => Some(String::<10>::from(generator.rhythm_machine.name())),
                         InputMode::Melody => Some(String::<10>::from(generator.melody_machine.name())),
@@ -393,8 +394,9 @@ mod app {
                     PerformView {
                         input_mode: *input_mode,
                         playing: sequencer.playing(),
-                        sequence,
                         track_num: *current_track,
+                        sequence,
+                        part,
                         active_step_num,
                         machine_name,
                         param_data,
@@ -403,8 +405,9 @@ mod app {
                 None => PerformView {
                     input_mode: *input_mode,
                     playing: sequencer.playing(),
-                    sequence: None,
                     track_num: *current_track,
+                    sequence: None,
+                    part,
                     active_step_num: None,
                     machine_name: None,
                     param_data: None,

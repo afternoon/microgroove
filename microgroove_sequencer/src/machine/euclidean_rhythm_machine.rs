@@ -73,7 +73,7 @@ impl EuclideanRhythmMachine {
         let active_steps = (0..sequence.len()).map(|i| (pattern_bits >> (steps - i - 1)) & 1 == 1);
         let rotate = rotate % steps as u8;
         sequence
-            .activate_steps(active_steps)
+            .mask_steps(active_steps)
             .rotate_right(rotate.into())
     }
 }

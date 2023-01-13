@@ -245,11 +245,11 @@ mod tests {
 
     #[test]
     fn sequencer_enable_track_should_insert_new_track() {
-        let mut sequencer = Sequencer::default();
         let generator = SequenceGenerator::default();
         let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
         new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        let mut sequencer = Sequencer::default();
         sequencer.enable_track(0, new_track);
         assert!(sequencer.tracks[0].is_some());
         assert!(sequencer.tracks[1..TRACK_COUNT]
@@ -307,7 +307,8 @@ mod tests {
         let generator = SequenceGenerator::default();
         let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence =
+            generator.generate(new_track.length, &mut machine_resources);
         sequencer.enable_track(0, new_track);
         sequencer.start_playing();
         let mut output_messages = vec![];
@@ -349,7 +350,8 @@ mod tests {
         let generator = SequenceGenerator::default();
         let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence =
+            generator.generate(new_track.length, &mut machine_resources);
         sequencer.enable_track(0, new_track);
         sequencer.set_swing(Swing::Mpc54);
         sequencer.start_playing();

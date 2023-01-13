@@ -4,12 +4,12 @@ use core::cmp::PartialEq;
 use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use heapless::{String, Vec};
 
-use crate::machine::grids_rhythm_machine::Instrument;
-use crate::sequencer::Swing;
 use crate::{
-    machine::{MelodyMachineId, RhythmMachineId},
+    machine::{grids_rhythm_machine::Instrument, MelodyMachineId, RhythmMachineId},
     midi::Note,
+    part::Part,
     quantizer::{Key, Scale},
+    sequencer::Swing,
     TimeDivision,
 };
 
@@ -29,6 +29,7 @@ pub enum ParamValue {
     Key(Key),
     Swing(Swing),
     Instrument(Instrument),
+    Part(Part),
 }
 
 impl Display for ParamValue {
@@ -43,6 +44,7 @@ impl Display for ParamValue {
             ParamValue::Key(key) => Display::fmt(&key, f),
             ParamValue::Swing(swing) => Display::fmt(&swing, f),
             ParamValue::Instrument(instrument) => Display::fmt(&instrument, f),
+            ParamValue::Part(part) => Display::fmt(&part, f),
         }
     }
 }
@@ -59,6 +61,7 @@ impl From<ParamValue> for i32 {
             ParamValue::Key(key) => key as i32,
             ParamValue::Swing(swing) => swing as i32,
             ParamValue::Instrument(instrument) => instrument as i32,
+            ParamValue::Part(part) => part as i32,
         }
     }
 }
@@ -164,6 +167,15 @@ impl Param {
         }
     }
 
+    pub fn new_part_param(name: &str) -> Param {
+        Param {
+            name: name.into(),
+            value: ParamValue::Part(Part::default()),
+            min: ParamValue::Part(Part::Sequence),
+            max: ParamValue::Part(Part::Turnaround),
+        }
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
@@ -214,6 +226,10 @@ impl Param {
             ParamValue::Instrument(_) => new_value
                 .try_into()
                 .map(|val| self.value = ParamValue::Instrument(val))
+                .map_err(|_| ParamError::ValueOutOfRange)?,
+            ParamValue::Part(_) => new_value
+                .try_into()
+                .map(|val| self.value = ParamValue::Part(val))
                 .map_err(|_| ParamError::ValueOutOfRange)?,
         };
         Ok(())
@@ -322,6 +338,17 @@ impl TryInto<Instrument> for ParamValue {
     fn try_into(self) -> Result<Instrument, Self::Error> {
         match self {
             ParamValue::Instrument(instrument) => Ok(instrument),
+            unexpected => Err(ParamError::UnexpectedValue(unexpected)),
+        }
+    }
+}
+
+impl TryInto<Part> for ParamValue {
+    type Error = ParamError;
+
+    fn try_into(self) -> Result<Part, Self::Error> {
+        match self {
+            ParamValue::Part(part) => Ok(part),
             unexpected => Err(ParamError::UnexpectedValue(unexpected)),
         }
     }

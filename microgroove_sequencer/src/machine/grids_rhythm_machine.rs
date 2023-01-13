@@ -484,7 +484,7 @@ impl GridsRhythmMachine {
             let level = step_level.saturating_add(perturb_delta);
             level > threshold
         });
-        sequence.activate_steps(active_steps)
+        sequence.mask_steps(active_steps)
     }
 }
 

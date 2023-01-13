@@ -4,6 +4,7 @@ pub mod machine;
 pub mod machine_resources;
 pub mod midi;
 pub mod param;
+pub mod part;
 pub mod quantizer;
 pub mod sequence_generator;
 pub mod sequencer;
@@ -184,6 +185,11 @@ impl Sequence {
         self.steps.as_slice()
     }
 
+    pub fn set_steps(mut self, steps: Vec<Option<Step>, SEQUENCE_MAX_STEPS>) -> Self {
+        self.steps = steps;
+        self
+    }
+
     pub fn rotate_left(mut self, amount: usize) -> Sequence {
         self.steps.rotate_left(amount);
         self
@@ -217,13 +223,13 @@ impl Sequence {
         self
     }
 
-    pub fn activate_steps<I>(mut self, active_steps: I) -> Self
+    pub fn mask_steps<I>(mut self, step_mask: I) -> Self
     where
         I: IntoIterator<Item = bool>,
     {
-        let steps_is_active_pairs = self.steps.iter_mut().zip(active_steps);
-        for (step, is_active) in steps_is_active_pairs {
-            if !is_active {
+        let steps_unmasked_pairs = self.steps.iter_mut().zip(step_mask);
+        for (step, unmasked) in steps_unmasked_pairs {
+            if !unmasked {
                 step.take();
             }
         }
