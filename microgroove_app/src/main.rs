@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(alloc_error_handler)]
 
 mod display;
 mod encoder;
@@ -491,12 +490,5 @@ mod app {
         loop {
             cortex_m::asm::nop();
         }
-    }
-
-    // OOM handler
-    #[alloc_error_handler]
-    fn alloc_error(_layout: core::alloc::Layout) -> ! {
-        error!("TICK TICK TICK TICK OOM!");
-        panic!("TICK TICK TICK TICK OOM!");
     }
 }
