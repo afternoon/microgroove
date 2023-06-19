@@ -166,7 +166,7 @@ mod app {
             .expect("render_splash_screen_view should succeed");
 
         // start scheduled tasks to read buttons, read encoders and update display
-        read_neokey::spawn().expect("read_neokey::spawn should succeed");
+        read_buttons::spawn().expect("read_buttons::spawn should succeed");
         read_encoders::spawn().expect("read_encoders::spawn should succeed");
         update_display::spawn().expect("update_display::spawn should succeed");
 
