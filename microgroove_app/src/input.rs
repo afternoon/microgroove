@@ -2,9 +2,9 @@ use crate::encoder::encoder_array::ENCODER_COUNT;
 use microgroove_sequencer::{
     machine::{MelodyMachineId, RhythmMachineId},
     machine_resources::MachineResources,
-    param::{wrapping_add, ParamValue, ParamList, ParamError},
-    sequencer::Sequencer,
+    param::{wrapping_add, ParamError, ParamList, ParamValue},
     sequence_generator::SequenceGenerator,
+    sequencer::Sequencer,
     Track, TRACK_COUNT,
 };
 
@@ -46,10 +46,17 @@ pub fn apply_encoder_values(
         enable_track(sequencer, current_track);
         return Ok(());
     }
-    let generator = sequence_generators.get_mut(*current_track as usize).unwrap();
+    let generator = sequence_generators
+        .get_mut(*current_track as usize)
+        .unwrap();
     match input_mode {
         InputMode::Track => {
-            let track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut().unwrap();
+            let track = sequencer
+                .tracks
+                .get_mut(*current_track as usize)
+                .unwrap()
+                .as_mut()
+                .unwrap();
             let params = track.params_mut();
             update_params(&encoder_values, params)?;
             if rhythm_machine_changed(input_mode, &encoder_values) {
@@ -162,7 +169,12 @@ fn update_melody_machine(generator: &mut SequenceGenerator, param_value: ParamVa
     generator.melody_machine = id.into();
 }
 
-fn update_sequence(sequencer: &mut Sequencer, track_num: &u8, generator: &SequenceGenerator, machine_resources: &mut MachineResources) {
+fn update_sequence(
+    sequencer: &mut Sequencer,
+    track_num: &u8,
+    generator: &SequenceGenerator,
+    machine_resources: &mut MachineResources,
+) {
     debug!("[update_sequence] track_num={}", track_num);
     match sequencer.tracks.get_mut(*track_num as usize) {
         Some(mut_track) => match mut_track.as_mut() {
@@ -174,7 +186,10 @@ fn update_sequence(sequencer: &mut Sequencer, track_num: &u8, generator: &Sequen
             }
         },
         None => {
-            error!("[update_sequence] couldn't get track from sequencer, track_num={}", track_num);
+            error!(
+                "[update_sequence] couldn't get track from sequencer, track_num={}",
+                track_num
+            );
         }
     }
 }

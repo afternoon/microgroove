@@ -81,8 +81,9 @@ pub fn setup(
         &mut watchdog,
     )
     .ok()
-    .expect("init: init_clocks_and_plls(...) should succeed");
+    .expect("init_clocks_and_plls(...) should succeed");
 
+    // setup MIDI IO
     let (midi_in, midi_out) = new_midi_uart(
         pac.UART0,
         pins.gpio16.into_mode::<FunctionUart>(),
@@ -91,6 +92,7 @@ pub fn setup(
         clocks.peripheral_clock.freq(),
     );
 
+    // setup display
     let display = new_display(
         pac.I2C1,
         pins.gpio26.into_mode::<FunctionI2C>(),
@@ -112,28 +114,28 @@ pub fn setup(
             pins.gpio9.into(),
             pins.gpio10.into(),
         ))
-        .expect("failed to create encoder");
+        .expect("encoder_vec.push(...) should succeed");
     encoder_vec
         .push(PositionalEncoder::new(
             pins.gpio11.into(),
             pins.gpio12.into(),
         ))
-        .unwrap();
+        .expect("encoder_vec.push(...) should succeed");
     encoder_vec
         .push(PositionalEncoder::new(
             pins.gpio13.into(),
             pins.gpio14.into(),
         ))
-        .unwrap();
+        .expect("encoder_vec.push(...) should succeed");
     encoder_vec
         .push(PositionalEncoder::new(pins.gpio3.into(), pins.gpio4.into()))
-        .unwrap();
+        .expect("encoder_vec.push(...) should succeed");
     encoder_vec
         .push(PositionalEncoder::new(pins.gpio5.into(), pins.gpio6.into()))
-        .unwrap();
+        .expect("encoder_vec.push(...) should succeed");
     encoder_vec
         .push(PositionalEncoder::new(pins.gpio7.into(), pins.gpio8.into()))
-        .unwrap();
+        .expect("encoder_vec.push(...) should succeed");
     let encoders = EncoderArray::new(encoder_vec);
 
     // create a ring oscillator for random-number generation
@@ -193,7 +195,9 @@ fn new_display(
     )
     .into_buffered_graphics_mode();
 
-    display.init().expect("init: display initialisation failed");
+    display
+        .init()
+        .expect("display.init() should succeed");
 
     display
 }

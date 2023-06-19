@@ -307,8 +307,7 @@ mod tests {
         let generator = SequenceGenerator::default();
         let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence =
-            generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
         sequencer.enable_track(0, new_track);
         sequencer.start_playing();
         let mut output_messages = vec![];
@@ -350,8 +349,7 @@ mod tests {
         let generator = SequenceGenerator::default();
         let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence =
-            generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
         sequencer.enable_track(0, new_track);
         sequencer.set_swing(Swing::Mpc54);
         sequencer.start_playing();

@@ -13,7 +13,9 @@ pub fn log_message(message: &MidiMessage) {
             let velocity: u8 = (*velocity).into();
             trace!(
                 "[midi_send] note on midi_channel={} note={} velocity={}",
-                midi_channel, note, velocity
+                midi_channel,
+                note,
+                velocity
             );
         }
         MidiMessage::NoteOff(midi_channel, note, _velocity) => {
@@ -21,7 +23,8 @@ pub fn log_message(message: &MidiMessage) {
             let note: u8 = (*note).into();
             trace!(
                 "[midi_send] note off midi_channel={} note={}",
-                midi_channel, note
+                midi_channel,
+                note
             );
         }
         _ => trace!("[midi_send] UNKNOWN"),

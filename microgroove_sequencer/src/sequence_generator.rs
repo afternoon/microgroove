@@ -24,10 +24,8 @@ impl Default for SequenceGenerator {
         SequenceGenerator {
             rhythm_machine: Box::new(UnitMachine::new()),
             melody_machine: Box::new(UnitMachine::new()),
-            groove_params: ParamList::from_slice(&[
-                Box::new(Param::new_part_param("PART")),
-            ])
-            .unwrap(),
+            groove_params: ParamList::from_slice(&[Box::new(Param::new_part_param("PART"))])
+                .unwrap(),
             harmony_params: ParamList::from_slice(&[
                 Box::new(Param::new_scale_param("SCALE")),
                 Box::new(Param::new_key_param("KEY")),
@@ -67,11 +65,7 @@ impl SequenceGenerator {
     }
 
     /// Generate a sequence by piping the initial sequence through the set of configured machines.
-    pub fn generate(
-        &self,
-        length: u8,
-        machine_resources: &mut MachineResources,
-    ) -> Sequence {
+    pub fn generate(&self, length: u8, machine_resources: &mut MachineResources) -> Sequence {
         // a pipe operator would be nice to have here
         self.apply_part(
             self.apply_quantizer(

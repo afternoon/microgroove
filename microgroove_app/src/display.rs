@@ -1,10 +1,6 @@
 /// Rendering UI graphics to the display.
 use crate::{input::InputMode, peripherals::Display};
-use microgroove_sequencer::{
-    part::Part,
-    map_to_range,
-    Sequence
-};
+use microgroove_sequencer::{map_to_range, part::Part, Sequence};
 
 use core::{fmt::Write, iter::zip, str::FromStr};
 use display_interface::DisplayError;
@@ -93,8 +89,10 @@ impl PerformView {
     }
 
     fn draw_header(&self, display: &mut Display) -> DisplayResult {
-        let mut track_num_str: String<5> = String::from_str("TRK").unwrap();
-        write!(track_num_str, "{:02}", self.track_num).unwrap();
+        let mut track_num_str: String<5> = String::from_str("TRK")
+            .expect("track_num_str from_str should succeed");
+        write!(track_num_str, "{:02}", self.track_num)
+            .expect("write! track_num_str should succeed");
         Text::with_baseline(
             track_num_str.as_str(),
             Point::zero(),
@@ -142,7 +140,8 @@ impl PerformView {
     }
 
     fn draw_sequence(&self, display: &mut Display) -> DisplayResult {
-        let sequence = self.sequence.as_ref().unwrap();
+        let sequence = self.sequence.as_ref()
+            .expect("get sequence as_ref should succeed");
         let length = sequence.len();
         let part_mask = Part::new_mask(self.part, length);
         let step_width: u32 = if length <= 16 { 6 } else { 3 };
@@ -181,18 +180,19 @@ impl PerformView {
                     .draw(display)?;
 
                 // draw velocity tick
-                    let velocity: u8 = step.velocity.into();
-                    let velocity_tick_height = velocity >> 5;
-                    Line::new(
-                        Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
-                        Point::new(x, SEQUENCE_UNDERLINE_Y_POS - velocity_tick_height as i32),
-                    )
-                    .into_styled(stroke)
-                    .draw(display)?;
+                let velocity: u8 = step.velocity.into();
+                let velocity_tick_height = velocity >> 5;
+                Line::new(
+                    Point::new(x, SEQUENCE_UNDERLINE_Y_POS),
+                    Point::new(x, SEQUENCE_UNDERLINE_Y_POS - velocity_tick_height as i32),
+                )
+                .into_styled(stroke)
+                .draw(display)?;
             }
 
             // draw step underline
-            let (underline_start, underline_finish) = if masked { (x, x2 - 1) } else { (x + 2, x2 - 4) };
+            let (underline_start, underline_finish) =
+                if masked { (x, x2 - 1) } else { (x + 2, x2 - 4) };
             Line::new(
                 Point::new(underline_start, SEQUENCE_UNDERLINE_Y_POS),
                 Point::new(underline_finish, SEQUENCE_UNDERLINE_Y_POS),
@@ -251,7 +251,10 @@ impl PerformView {
             Point::new(value1_x, row1_y),
             Point::new(value2_x, row1_y),
         ];
-        let params = zip(self.param_data.as_ref().unwrap(), zip(param_name_points, param_value_points));
+        let params = zip(
+            self.param_data.as_ref().unwrap(),
+            zip(param_name_points, param_value_points),
+        );
 
         for ((param_name, param_value), (name_point, value_point)) in params {
             Text::with_baseline(
@@ -275,7 +278,7 @@ impl PerformView {
         // the top of whatever junk value came from the param.
         if is_track {
             let mut track_num_str: String<5> = String::new();
-            write!(track_num_str, "{}", self.track_num).unwrap();
+            write!(track_num_str, "{}", self.track_num).expect("write! track_num should succeed");
             Rectangle::new(Point::new(116, row0_y), Size::new(13, 6))
                 .into_styled(background_style())
                 .draw(display)?;

@@ -149,7 +149,9 @@ mod app {
         // tracks.
         let mut sequence_generators: Vec<SequenceGenerator, TRACK_COUNT> = Vec::new();
         for _i in 0..TRACK_COUNT {
-            sequence_generators.push(SequenceGenerator::default()).unwrap();
+            sequence_generators
+                .push(SequenceGenerator::default())
+                .expect("adding SequenceGenerator to vec should succeed");
         }
 
         // create a new sequencer and build the first track
@@ -161,10 +163,11 @@ mod app {
         sequencer.enable_track(0, new_track);
 
         // show a splash screen for a bit
-        display::render_splash_screen_view(&mut display).unwrap();
+        display::render_splash_screen_view(&mut display)
+            .expect("render_splash_screen_view should succeed");
 
         // start scheduled tasks to read buttons, read encoders and update display
-        read_buttons::spawn().expect("read_buttons::spawn should succeed");
+        read_neokey::spawn().expect("read_neokey::spawn should succeed");
         read_encoders::spawn().expect("read_encoders::spawn should succeed");
         update_display::spawn().expect("update_display::spawn should succeed");
 
@@ -250,7 +253,10 @@ mod app {
             }
         }
 
-        trace!("[uart0_irq] elapsed_time={}", (monotonics::now() - start).to_micros());
+        trace!(
+            "[uart0_irq] elapsed_time={}",
+            (monotonics::now() - start).to_micros()
+        );
     }
 
     /// Send a MIDI message. Implemented as a task to allow cooperative multitasking with
@@ -287,7 +293,7 @@ mod app {
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
                     InputMode::Track => InputMode::Sequence,
-                    _ => InputMode::Track
+                    _ => InputMode::Track,
                 }
             });
         }
@@ -299,7 +305,7 @@ mod app {
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
                     InputMode::Rhythm => InputMode::Groove,
-                    _ => InputMode::Rhythm
+                    _ => InputMode::Rhythm,
                 }
             });
         }
@@ -311,7 +317,7 @@ mod app {
             ctx.shared.input_mode.lock(|input_mode| {
                 *input_mode = match *input_mode {
                     InputMode::Melody => InputMode::Harmony,
-                    _ => InputMode::Melody
+                    _ => InputMode::Melody,
                 }
             });
         }
@@ -333,22 +339,35 @@ mod app {
         trace!("[read_encoders] start");
 
         if let Some(_changes) = ctx.local.encoders.update() {
-            (ctx.shared.input_mode, ctx.shared.current_track, ctx.shared.sequencer, ctx.shared.sequence_generators).lock(|input_mode, current_track, sequencer, sequence_generators| {
-                input::apply_encoder_values(
-                    ctx.local.encoders.take_values(),
-                    *input_mode,
-                    current_track,
-                    sequencer,
-                    sequence_generators,
-                    ctx.local.machine_resources,
-                ).expect("should be able to apply encoder values");
-            })
+            (
+                ctx.shared.input_mode,
+                ctx.shared.current_track,
+                ctx.shared.sequencer,
+                ctx.shared.sequence_generators,
+            )
+                .lock(
+                    |input_mode, current_track, sequencer, sequence_generators| {
+                        input::apply_encoder_values(
+                            ctx.local.encoders.take_values(),
+                            *input_mode,
+                            current_track,
+                            sequencer,
+                            sequence_generators,
+                            ctx.local.machine_resources,
+                        )
+                        .expect("should be able to apply encoder values");
+                    },
+                )
         }
 
         // read again in 1ms
-        read_encoders::spawn_after(ENCODER_READ_INTERVAL).unwrap();
+        read_encoders::spawn_after(ENCODER_READ_INTERVAL)
+            .expect("schedule read_encoders should succeed");
 
-        trace!("[read_encoders] elapsed_time={}", (monotonics::now() - start).to_micros());
+        trace!(
+            "[read_encoders] elapsed_time={}",
+            (monotonics::now() - start).to_micros()
+        );
     }
 
     /// Update the display by rendering a view object. This method creates an instance of a view,
@@ -364,65 +383,87 @@ mod app {
         let start = monotonics::now();
         trace!("[update_display] start");
 
-        (ctx.shared.input_mode, ctx.shared.current_track, ctx.shared.sequencer, ctx.shared.sequence_generators).lock(|input_mode, current_track, sequencer, sequence_generators| {
-            let tick = sequencer.tick();
-            let maybe_track = sequencer.tracks.get_mut(*current_track as usize).unwrap().as_mut();
-            let generator = sequence_generators.get(*current_track as usize).unwrap();
-            let part = generator.part();
-            let view = match maybe_track {
-                Some(track) => {
-                    let sequence = Some(track.sequence.clone());
-                    let active_step_num = Some(track.step_num(tick));
-                    let machine_name = match input_mode {
-                        InputMode::Rhythm => Some(String::<10>::from(generator.rhythm_machine.name())),
-                        InputMode::Melody => Some(String::<10>::from(generator.melody_machine.name())),
-                        _ => None,
+        (
+            ctx.shared.input_mode,
+            ctx.shared.current_track,
+            ctx.shared.sequencer,
+            ctx.shared.sequence_generators,
+        )
+            .lock(
+                |input_mode, current_track, sequencer, sequence_generators| {
+                    let tick = sequencer.tick();
+                    let maybe_track = sequencer
+                        .tracks
+                        .get_mut(*current_track as usize)
+                        .unwrap()
+                        .as_mut();
+                    let generator = sequence_generators.get(*current_track as usize).unwrap();
+                    let part = generator.part();
+                    let view = match maybe_track {
+                        Some(track) => {
+                            let sequence = Some(track.sequence.clone());
+                            let active_step_num = Some(track.step_num(tick));
+                            let machine_name = match input_mode {
+                                InputMode::Rhythm => {
+                                    Some(String::<10>::from(generator.rhythm_machine.name()))
+                                }
+                                InputMode::Melody => {
+                                    Some(String::<10>::from(generator.melody_machine.name()))
+                                }
+                                _ => None,
+                            };
+                            let params = match input_mode {
+                                InputMode::Track => track.params(),
+                                InputMode::Sequence => sequencer.params(),
+                                InputMode::Rhythm => generator.rhythm_machine.params(),
+                                InputMode::Groove => generator.groove_params(),
+                                InputMode::Melody => generator.melody_machine.params(),
+                                InputMode::Harmony => generator.harmony_params(),
+                            };
+                            let param_data = Some(
+                                params
+                                    .iter()
+                                    .map(|param| {
+                                        let mut value_string = String::new();
+                                        write!(value_string, "{}", param.value()).unwrap();
+                                        (String::<6>::from(param.name()), value_string)
+                                    })
+                                    .collect(),
+                            );
+                            PerformView {
+                                input_mode: *input_mode,
+                                playing: sequencer.playing(),
+                                track_num: *current_track,
+                                sequence,
+                                part,
+                                active_step_num,
+                                machine_name,
+                                param_data,
+                            }
+                        }
+                        None => PerformView {
+                            input_mode: *input_mode,
+                            playing: sequencer.playing(),
+                            track_num: *current_track,
+                            sequence: None,
+                            part,
+                            active_step_num: None,
+                            machine_name: None,
+                            param_data: None,
+                        },
                     };
-                    let params = match input_mode {
-                        InputMode::Track => track.params(),
-                        InputMode::Sequence => sequencer.params(),
-                        InputMode::Rhythm => generator.rhythm_machine.params(),
-                        InputMode::Groove => generator.groove_params(),
-                        InputMode::Melody => generator.melody_machine.params(),
-                        InputMode::Harmony => generator.harmony_params(),
-                    };
-                    let param_data = Some(params.iter().map(|param| {
-                        let mut value_string = String::new();
-                        write!(value_string, "{}", param.value()).unwrap();
-                        (String::<6>::from(param.name()), value_string)
-                    }).collect());
-                    PerformView {
-                        input_mode: *input_mode,
-                        playing: sequencer.playing(),
-                        track_num: *current_track,
-                        sequence,
-                        part,
-                        active_step_num,
-                        machine_name,
-                        param_data,
-                    }
-                }
-                None => PerformView {
-                    input_mode: *input_mode,
-                    playing: sequencer.playing(),
-                    track_num: *current_track,
-                    sequence: None,
-                    part,
-                    active_step_num: None,
-                    machine_name: None,
-                    param_data: None,
-                }
-            };
 
-            render_view::spawn(view)
-                .expect("should be able to spawn_after display_update");
-
-        });
+                    render_view::spawn(view).expect("should be able to spawn_after display_update");
+                },
+            );
 
         update_display::spawn_after(DISPLAY_UPDATE_INTERVAL)
             .expect("should be able to spawn_after update_display");
 
-        trace!("[update_display] elapsed_time={}", (monotonics::now() - start).to_micros());
+        trace!(
+            "[update_display] elapsed_time={}",
+            (monotonics::now() - start).to_micros()
+        );
     }
 
     #[task(
@@ -437,7 +478,10 @@ mod app {
             error!("PerformView::render error");
         }
 
-        trace!("[render_view] elapsed_time={}", (monotonics::now() - start).to_micros());
+        trace!(
+            "[render_view] elapsed_time={}",
+            (monotonics::now() - start).to_micros()
+        );
     }
 
     // idle task needed because default RTIC idle task calls wfi(), which breaks rtt

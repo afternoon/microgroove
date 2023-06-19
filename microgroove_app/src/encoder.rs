@@ -34,9 +34,7 @@ pub mod positional_encoder {
                     self.value -= 1;
                     Some(self.value)
                 }
-                Ok(Direction::None) => {
-                    None
-                }
+                Ok(Direction::None) => None,
                 Err(_error) => {
                     error!("[PositionalEncoder::update] could not update encoder");
                     None
