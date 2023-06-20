@@ -36,17 +36,25 @@ controls. It expects another device to be the master clock.
 Microgroove's Track 1 is set to MIDI channel 1 by default. Set one of your instruments to listen to 
 this channel, or change it from the track page.
 
-Press play on your master sequencer. Microgroove will start playing a randomly-generated 8-step sequence on MIDI channel 1.
+Press play on your master sequencer. Microgroove will start playing a
+randomly-generated 8-step sequence on MIDI channel 1.
 
-Microgroove's MIDI out provides soft MIDI thru. Any MIDI notes coming from your master sequencer will also be sent to your instruments.
+Microgroove's MIDI out provides soft MIDI thru. Any MIDI notes coming from your
+master sequencer will also be sent to your instruments.
 
 ### Tweak
 
-Microgroove's philosophy is that generating a sequence and tweaking it is a great way to create ideas. Use `[ENCODER1]` to `[ENCODER6]` to change parameters. Use the `[TRACK]`, `[RHYTHM]` and `[MELODY]` buttons to change between parameter pages. Press `[TRACK]` to cycle between the Track and Sequence pages, `[RHYTHM]` to cycle between Rhythm and Groove pages, `[MELODY]` for Melody and Harmony pages.
+Microgroove's philosophy is that generating a sequence and tweaking it is a
+great way to create ideas. Use `[ENCODER1]` to `[ENCODER6]` to change
+parameters. Use the `[TRACK]`, `[RHYTHM]` and `[MELODY]` buttons to change
+between parameter pages. Press `[TRACK]` to cycle between the Track and
+Sequence pages, `[RHYTHM]` to cycle between Rhythm and Groove pages, `[MELODY]`
+for Melody and Harmony pages.
 
 Each page lets you control an aspect of the current track, or the overall sequence.
 
-- Track: Change rhythm and melody machines, length, time division and MIDI channel for the current track. Use `[ENCODER3]` to switch between tracks.
+- Track: Change rhythm and melody machines, length, time division and MIDI
+  channel for the current track. Use `[ENCODER3]` to switch between tracks.
 - Sequence: Set swing for all tracks (MPC format).
 - Rhythm: Parameters for the selected rhythm machine.
 - Groove: Set a part for this track, masking areas of the pattern.
@@ -55,22 +63,57 @@ Each page lets you control an aspect of the current track, or the overall sequen
 
 Choose rhythm and melody machines for each track, both are random by default.
 
-To switch tracks, press `[TRACK]` to go to the Track page and choose a track with `[ENCODER3]`. Tracks 2-8 are disabled by default. Choose a MIDI channel to enable them.
+To switch tracks, press `[TRACK]` to go to the Track page and choose a track
+with `[ENCODER3]`. Tracks 2-8 are disabled by default. Choose a MIDI channel to
+enable them.
 
-Parts allow you to set up multiple tracks to play together in structures like call-and-response or ABAC. Try setting Track 1 to `Call` and Track 2 to `Response`, with all other parameters the same.
+Parts allow you to set up multiple tracks to play together in structures like
+call-and-response or ABAC. Try setting Track 1 to `CALL` and Track 2 to
+`RESP`, with all other parameters the same.
 
 ## Firmware
 
-The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs) real-time framework. It's separated into two crates. `microgroove_sequencer` implements the core data model and logic. `microgroove_app` implements an RTIC application which interfaces with hardware and responds to events like button presses, encoder turns and MIDI clock messages. RTIC is truly wonderful. It lets us write clean Rust code which multitasks with timing accurate to a few microseconds.
+The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs)
+real-time framework. RTIC is truly wonderful. It lets us write clean Rust code
+which multitasks with timing accurate to a few microseconds.
 
-Microgroove is inspired by Elektron's machines, which make it fast to create and manipulate musical ideas. The UI borrows the pages + encoders paradigm.
+The app loosely follows the MVC architecture. The `microgroove_sequencer` library crate implements
+the model. In the `microgroove_app` binary crate, the `display` module implements the view, while
+the`app` module implements the controller.
+
+Conceptually Microgroove is inspired by Elektron's machines, which make it fast to create and
+manipulate musical ideas (the UI borrows Elektron's pages + encoders paradigm), and from modular,
+which allows different task-specific components to be composed into a system. Different `Machine`s
+can be combined to change how the sequence is generated.
 
 The Machine concept is somewhat inspired by modular, where different modules can generate the
 rhythm or the melody, or process it.
 
-Architecture is MVC-like. Buttons change input mode. Input mode is used to determine what to display. Encoder turns are mapped to parameters depending on input mode
 
-Data model:
+The code is split across two crates to allow the model and logic code to be platform-independent,
+and therefore testable.
+
+### Data model
+
+A set of `struct`s in the `microgroove_sequencer` crate implement the data model.
+
+- The top-level object is an instance of `Sequencer`.
+- A `Sequencer` has many `Track`s, which has a length, time division, MIDI channel, etc, and a
+  `Sequence`.
+- `Sequence` is a wrapper around `Vec` storing `Step`s, providing a grammar of methods for manipulating sequences in
+    useful ways, e.g. setting the note numbers for steps from a `Vec` of `Note`s
+- `Step` has a `Note`, velocity, length and delay.
+- `Note` is an `enum` of all MIDI note numbers.
+
+Sequence generation is implemented by the `SequenceGenerator` struct. This is exposed to the RTIC
+application separately from the data model, to allow the app to control how and when concrete
+sequences are generated. A `SequenceGenerator` object has two `Machine`s. One to generate the rhythm
+and a second to generate a melody. `Machine`s have an `apply` method which takes a `Sequence` and
+transforms it. The process of generating a sequence is implemented as a pipeline in
+`SequenceGenerator::generate`. A default `Sequence` is created and transformed by several
+`Machine`s in order. The `Sequence` is then passed to a quantizer and to the "part" logic, which
+removes steps from parts of the sequence.
+
 
 ### Building the firmware
 
@@ -83,6 +126,8 @@ Data model:
 Serial output will be displayed on the console via `defmt`. It's possible to debug with GDB using a 2nd Raspberry Pi Pico as a debug probe. Ask me about it sometime.
 
 ## Hardware
+
+![Early Microgroove build on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard-photo.png)
 
 Microgroove is a simple device based around the Raspberry Pi Pico microcontroller.
 Building your own should be straightforward (I didn't know anything about electronics before I built it).
