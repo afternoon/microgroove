@@ -61,22 +61,22 @@ Parts allow you to set up multiple tracks to play together in structures like ca
 
 ## Firmware
 
-The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs) real-time framework.
+The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs) real-time framework. It's separated into two crates. `microgroove_sequencer` implements the core data model and logic. `microgroove_app` implements an RTIC application which interfaces with hardware and responds to events like button presses, encoder turns and MIDI clock messages. RTIC is truly wonderful. It lets us write clean Rust code which multitasks with timing accurate to a few microseconds.
 
-### Architecture
-
-TODO. RTIC, Sequencers, Tracks, Machines, Params, oh my!
-
-Microgroove is heavily inspired by Elektron's machines, like the Digitakt or Octatrack. These
-machines make it fast to create and manipulate something.
+Microgroove is inspired by Elektron's machines, which make it fast to create and manipulate musical ideas. The UI borrows the pages + encoders paradigm.
 
 The Machine concept is somewhat inspired by modular, where different modules can generate the
 rhythm or the melody, or process it.
+
+Architecture is MVC-like. Buttons change input mode. Input mode is used to determine what to display. Encoder turns are mapped to parameters depending on input mode
+
+Data model:
 
 ### Building the firmware
 
 - Set up the Rust embedded toolchain on your machine.
 - Connect the Pico by USB and run `cargo run` to flash to the device.
+- You can run `cargo test` in either the `firmware` or `microgroove_sequencer` directories to test changes to the `microgroove_sequencer` crate. `microgroove_app` doesn't have tests. You'll have to QA your changes on a device.
 
 ### Debugging
 
