@@ -28,8 +28,6 @@ Microgroove won't break your gear.
 
 ## Quickstart
 
-### Get connected
-
 Connect at least one instrument to MIDI out, for example, a synth or a drum machine.
 
 Connect a device with a sequencer to MIDI in. Microgroove doesn't have its own clock or transport
@@ -38,37 +36,34 @@ controls. It expects another device to be the master clock.
 Microgroove's Track 1 is set to MIDI channel 1 by default. Set one of your instruments to listen to 
 this channel, or change it from the track page.
 
-### Let's sequence
+Press play on your master sequencer. Microgroove will start playing a randomly-generated 8-step sequence on MIDI channel 1.
 
-Press/double-press buttons to change mode. Modes:
+Microgroove's MIDI out provides soft MIDI thru. Any MIDI notes coming from your master sequencer will also be sent to your instruments.
 
-Track: Choose rhythm and melody machines, change sequence length, time division and MIDI channel,
-switch between tracks.
-Sequence: Set swing (MPC format).
-Rhythm: Parameters for the selected rhythm machine.
-Groove: Set a "part" for this track, which masks areas of the sequence.
-Melody: Parameters for the selected melody machine.
-Harmony: Quantize melody to scale and key.
+### Tweak
+
+Microgroove's philosophy is that generating a sequence and tweaking it is a great way to create ideas. Use `[ENCODER1]` to `[ENCODER6]` to change parameters. Use the `[TRACK]`, `[RHYTHM]` and `[MELODY]` buttons to change between parameter pages. Press `[TRACK]` to cycle between the Track and Sequence pages, `[RHYTHM]` to cycle between Rhythm and Groove pages, `[MELODY]` for Melody and Harmony pages.
+
+Each page lets you control an aspect of the current track, or the overall sequence.
+
+- Track: Change rhythm and melody machines, length, time division and MIDI channel for the current track. Use `[ENCODER3]` to switch between tracks.
+- Sequence: Set swing for all tracks (MPC format).
+- Rhythm: Parameters for the selected rhythm machine.
+- Groove: Set a part for this track, masking areas of the pattern.
+- Melody: Parameters for the selected melody machine.
+- Harmony: Quantize the melody to scale and key.
 
 Choose rhythm and melody machines for each track, both are random by default.
 
-### Play!
+To switch tracks, press `[TRACK]` to go to the Track page and choose a track with `[ENCODER3]`. Tracks 2-8 are disabled by default. Choose a MIDI channel to enable them.
 
-Press play on your master sequencer.
+Parts allow you to set up multiple tracks to play together in structures like call-and-response or ABAC. Try setting Track 1 to `Call` and Track 2 to `Response`, with all other parameters the same.
 
-### More stuff to try
-
-To switch tracks, press [TRACK] to go to the track page, and choose a track with [ENCODER3]. Tracks 2-8 are disabled by default. Choose a MIDI channel to enable them.
-
-Parts allow you to set up multiple tracks to play together in structures like call-and-response or ABAC.
-
-Microgroove's MIDI out is soft MIDI thru. Messages are copied from MIDI in to MIDI out.
-
-# Firmware
+## Firmware
 
 The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs) real-time framework.
 
-## Architecture
+### Architecture
 
 TODO. RTIC, Sequencers, Tracks, Machines, Params, oh my!
 
@@ -78,24 +73,22 @@ machines make it fast to create and manipulate something.
 The Machine concept is somewhat inspired by modular, where different modules can generate the
 rhythm or the melody, or process it.
 
-## Building the firmware
+### Building the firmware
 
 - Set up the Rust embedded toolchain on your machine.
 - Connect the Pico by USB and run `cargo run` to flash to the device.
 
-## Debugging
+### Debugging
 
-Serial output will be displayed on the console via `defmt`.
+Serial output will be displayed on the console via `defmt`. It's possible to debug with GDB using a 2nd Raspberry Pi Pico as a debug probe. Ask me about it sometime.
 
-It's possible to debug with GDB. Ask me about it sometime.
-
-# Hardware
+## Hardware
 
 Microgroove is a simple device based around the Raspberry Pi Pico microcontroller.
 Building your own should be straightforward (I didn't know anything about electronics before I built it).
 The parts are fairly standard and easy to get hold of from a few different electronics vendors, for example Pi Hut in the UK, Adafruit in the US, and many more.
 
-## Building a Microgroove
+### Building a Microgroove
 
 Here is a breadboard diagram from Fritzing (as PNG, and the original FZZ file). Fritzing has a schematic view as well, but I didn't tidy that up (yet) so it's a mess. The Fritzing file also gives you the BOM, although the jacks and encoders are different parts from the ones I've used, and have different pinouts.
 
@@ -122,7 +115,7 @@ The case is laser cut, in my case from 3mm ply. If you have access to a laser cu
 
 When cut, the case pieces slot together, and the components screw or glue to the case with standoffs and M2 or M3 screws.
 
-# Get in touch
+## Get in touch
 
 Microgroove is still young and evolving fast. I'm be really interested to help out if you would like to build a device or contribute. I'd love to get your feedback on the process and also on how the device is to play, whether it’s fun, if you find the sequences in generates useful, what would make it more useful, and so on.
 
