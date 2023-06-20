@@ -1,24 +1,49 @@
 # Microgroove
 
-An open-source hardware MIDI sequence generator.
+8-track open-source hardware MIDI sequence generator.
 
-- 8 tracks.
-- Machines offer different ways to generate patterns, for example random melodies, or Euclidean rhythms, or rhythms using patterns from Mutable Instruments' Grids.
-- Tweak machine parameters to explore new ideas, or to perform live.
+- Machines offer different ways to generate sequences: random melodies, Euclidean rhythms, rhythms 
+  from Mutable Instruments' Grids.
+- Tweak parameters to explore new ideas, or to perform live.
 - Quantize melodies to scales.
 - Add swing and groove.
+- Create interplay between sequences, like call-and-response, or ABAC structures.
 
-# Quickstart
+## Why?
 
-Connect at least one instrument to the MIDI out port, for example, a synth or a drum machine.
+The modular world has some amazing tools for harnessing randomness to create interesting sequences:
+Turing Machine, Mutable Instruments Grids, Mimetic Digitalis, and so many more. The plugin ecosystem 
+does too, but I like to play with desktop hardware boxes. I built Microgroove to bring some of the 
+interesting sequencing ideas into a desktop MIDI setup.
 
-You'll need to supply a MIDI clock from another device. Connect any device with a sequencer, e.g. a groovebox, to the MIDI in port. Press play on that device to start playing.
+Microgroove is also a platform for experimentation. Trying new sequencing ideas is fast: create a 
+software change, flash it to the device next to you and start playing. Open sourcing the entire
+device means anyone can extend or adapt it.
 
-Track 1 is set to MIDI channel 1. Set one of your instruments to listen to this channel, or change it from the track page.
+## Caution
+
+Microgroove is a DIY electronic device that connects to other hardware. Please be careful if you're
+working on the electronics yourself, or connecting to expensive equipment. I can't guarantee that
+Microgroove won't break your gear.
+
+## Quickstart
+
+### Get connected
+
+Connect at least one instrument to MIDI out, for example, a synth or a drum machine.
+
+Connect a device with a sequencer to MIDI in. Microgroove doesn't have its own clock or transport
+controls. It expects another device to be the master clock.
+
+Microgroove's Track 1 is set to MIDI channel 1 by default. Set one of your instruments to listen to 
+this channel, or change it from the track page.
+
+### Let's sequence
 
 Press/double-press buttons to change mode. Modes:
 
-Track: Choose rhythm and melody machines, change sequence length, time division and MIDI channel, switch between tracks.
+Track: Choose rhythm and melody machines, change sequence length, time division and MIDI channel,
+switch between tracks.
 Sequence: Set swing (MPC format).
 Rhythm: Parameters for the selected rhythm machine.
 Groove: Set a "part" for this track, which masks areas of the sequence.
@@ -27,9 +52,17 @@ Harmony: Quantize melody to scale and key.
 
 Choose rhythm and melody machines for each track, both are random by default.
 
+### Play!
+
+Press play on your master sequencer.
+
+### More stuff to try
+
 To switch tracks, press [TRACK] to go to the track page, and choose a track with [ENCODER3]. Tracks 2-8 are disabled by default. Choose a MIDI channel to enable them.
 
 Parts allow you to set up multiple tracks to play together in structures like call-and-response or ABAC.
+
+Microgroove's MIDI out is soft MIDI thru. Messages are copied from MIDI in to MIDI out.
 
 # Firmware
 
@@ -38,6 +71,12 @@ The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs) re
 ## Architecture
 
 TODO. RTIC, Sequencers, Tracks, Machines, Params, oh my!
+
+Microgroove is heavily inspired by Elektron's machines, like the Digitakt or Octatrack. These
+machines make it fast to create and manipulate something.
+
+The Machine concept is somewhat inspired by modular, where different modules can generate the
+rhythm or the melody, or process it.
 
 ## Building the firmware
 
