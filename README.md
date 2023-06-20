@@ -127,7 +127,7 @@ Serial output will be displayed on the console via `defmt`. It's possible to deb
 
 ## Hardware
 
-![Early Microgroove build on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard-photo.png)
+![Early Microgroove build on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard-photo.jpg)
 
 Microgroove is a simple device based around the Raspberry Pi Pico microcontroller.
 Building your own should be straightforward (I didn't know anything about electronics before I built it).
