@@ -75,6 +75,13 @@ call-and-response or ABAC. Try setting Track 1 to `CALL` and Track 2 to
 
 ## Hardware
 
+Microgroove is a simple device based around the Raspberry Pi Pico microcontroller. Building your own
+should be straightforward (I knew nothing about electronics before I built it). The parts are fairly
+standard and easy to get hold of from a few different electronics vendors, for example Pi Hut in the
+UK or Adafruit in the US, and many more. You can build the device on a breadboard, or solder to
+something like a [protoboard](https://www.adafruit.com/product/4785) and mount inside a laser-cut
+case.
+
 ![Early Microgroove build on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard-photo.jpg)
 
 ### Components
@@ -94,13 +101,7 @@ call-and-response or ABAC. Try setting Track 1 to `CALL` and Track 2 to
 | 10Ω resistor                                                                                                 | 1        |
 | Breadboard/protoboard                                                                                        | 2        |
 
-### Building a Microgroove
-
-Microgroove is a simple device based around the Raspberry Pi Pico microcontroller. Building your own
-should be straightforward (I knew nothing about electronics before I built it). The parts are fairly
-standard and easy to get hold of from a few different electronics vendors, for example Pi Hut in the
-UK or Adafruit in the US, and many more. You can build the device on a breadboard, or solder to
-something like a [protoboard](https://www.adafruit.com/product/4785) and mount inside a laser-cut case.
+### Build
 
 This diagram shows the breadboard layout for Microgroove.
 
@@ -115,17 +116,16 @@ the components and their connections. There is also a schematic view, but it is 
 
 The OLED display, NeoKey and encoders connect directly to pins on the Pico.
 
-The NeoKey is a new addition and isn't essential. It can be replaced with a few generic push
-buttons. I'm still writing the code to add it, so the code on GitHub expects buttons. The benefits
-of the NeoKey are per-button LEDs and a PCB that will hold Cherry MX-style clicky keys, which are
-👌.
-
 The MIDI section is also fairly simple. They are based on diyelectromusic's
 [MIDI in](https://diyelectromusic.wordpress.com/2021/02/15/midi-in-for-3-3v-microcontrollers/) and
 [MIDI out](https://diyelectromusic.wordpress.com/2021/01/23/midi-micropython-and-the-raspberry-pi-pico/)
 circuits (thanks Kevin!). You can use TRS minijacks like me, or classic MIDI DIN jacks. Either way,
 check the pinouts for the components you purchase carefully. Wrong wiring here might damage your
 gear.
+
+The NeoKey is a new addition and isn't essential. It can be replaced with a few generic push
+buttons. I'm still writing the code to support it. The benefits of the NeoKey are per-button RGB
+LEDs and a PCB that will hold Cherry MX-style clicky keys, which are 👌.
 
 ### Case
 
