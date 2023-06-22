@@ -11,12 +11,14 @@
 
 ## Why?
 
-The modular world has some amazing tools for harnessing randomness to create interesting sequences:
-Turing Machine, Mutable Instruments Grids, Mimetic Digitalis, and so many more. The plugin ecosystem 
-does too, but I like to play with desktop hardware boxes. I built Microgroove to bring some of the 
-interesting sequencing ideas into a desktop MIDI setup.
+The modular world has some amazing tools to create interesting sequences: Turing Machine, Mutable
+Instruments Grids, Mimetic Digitalis, Knight's Gallop, and so many more. The software ecosystem does
+too, plugins like Stepic, modules in VCV Rack, and so many Max for Live experiments. In the desktop
+MIDI hardware world, we're short on options (kudos to the Torso T1 for changing that), and that's
+where I like to jam. I built Microgroove to bring some interesting sequencing ideas into a desktop
+MIDI setup.
 
-Microgroove is also a platform for experimentation. Trying new sequencing ideas is fast: create a 
+Microgroove is also a platform for experimentation. Trying new sequencing ideas is fast: create a
 software change, flash it to the device next to you and start playing. Open sourcing the entire
 device means anyone can extend or adapt it.
 
@@ -98,10 +100,11 @@ and therefore testable.
 A set of `struct`s in the `microgroove_sequencer` crate implement the data model.
 
 - The top-level object is an instance of `Sequencer`.
-- A `Sequencer` has many `Track`s, which has a length, time division, MIDI channel, etc, and a
+- A `Sequencer` has many `Track`s. `Track` has a length, time division, MIDI channel, etc, and a
   `Sequence`.
-- `Sequence` is a wrapper around `Vec` storing `Step`s, providing a grammar of methods for manipulating sequences in
-    useful ways, e.g. setting the note numbers for steps from a `Vec` of `Note`s
+- `Sequence` is a wrapper around a `Vec` of `Step`s, providing a grammar of methods for
+  manipulating sequences in useful ways, e.g. setting the note numbers for steps from a `Vec` of
+  `Note`s.
 - `Step` has a `Note`, velocity, length and delay.
 - `Note` is an `enum` of all MIDI note numbers.
 
@@ -111,19 +114,51 @@ sequences are generated. A `SequenceGenerator` object has two `Machine`s. One to
 and a second to generate a melody. `Machine`s have an `apply` method which takes a `Sequence` and
 transforms it. The process of generating a sequence is implemented as a pipeline in
 `SequenceGenerator::generate`. A default `Sequence` is created and transformed by several
-`Machine`s in order. The `Sequence` is then passed to a quantizer and to the "part" logic, which
-removes steps from parts of the sequence.
-
+`Machine`s in order. The `Sequence` is then passed to a quantizer and to logic which applies parts -
+removing steps from parts of the sequence.
 
 ### Building the firmware
 
-- Set up the Rust embedded toolchain on your machine.
-- Connect the Pico by USB and run `cargo run` to flash to the device.
-- You can run `cargo test` in either the `firmware` or `microgroove_sequencer` directories to test changes to the `microgroove_sequencer` crate. `microgroove_app` doesn't have tests. You'll have to QA your changes on a device.
+If you haven't already, [install Rust](https://www.rust-lang.org/tools/install). If you aren't yet
+familiar with Rust, I recommend reading the [Rust Book](https://doc.rust-lang.org/book/) to learn
+the language.
+
+Microgroove requires Rust nightly (it uses the
+[linked_list_allocator](https://crates.io/crates/linked_list_allocator) crate, which requires the
+`AllocRef` trait only in the nightly API). You'll also need to install the `thumbv6m-none-eabi`
+target, which allows compilation for the Pi Pico's ARM Cortex-M0+ CPU, and
+[cargo-embed](https://crates.io/crates/cargo-embed) which extends `cargo` with an `embed` command to
+flash binaries to embedded devices.
+
+```
+$ rustup toolchain install nightly
+$ rustup target add thumbv6m-none-eabi
+$ cargo install cargo-embed
+```
+
+You can check your setup by running the `microgroove_sequencer` crate's unit tests.
+
+```
+$ cd firmware/microgroove_sequencer
+$ cargo test
+```
+
+Connect the Pi Pico to your computer with USB and use `cargo-embed` to flash the app to your device.
+
+```
+$ cd ../microgroove_app
+$ cargo embed
+```
+
+Your Microgroove should now be ready to play!
 
 ### Debugging
 
-Serial output will be displayed on the console via `defmt`. It's possible to debug with GDB using a 2nd Raspberry Pi Pico as a debug probe. Ask me about it sometime.
+Serial output will be displayed on the console. See the
+[cargo-embed](https://crates.io/crates/cargo-embed) docs for information on how to run GDB.
+
+You can also use `probe-run` to flash binaries, but this requires a debug probe (which can be a 2nd
+Pi Pico).
 
 ## Hardware
 
