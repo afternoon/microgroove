@@ -86,20 +86,22 @@ case.
 
 ### Components
 
-| Component                                                                                                    | Quantity |
-|------------------------------------------------------------------------------------------------------------- | -------- |
-| [Raspberry Pi Pico](https://www.raspberrypi.com/products/raspberry-pi-pico/)                                 | 1        |
-| [Adafruit 128x64 1.3" Monochrome OLED](https://www.adafruit.com/product/938)                                 | 1        |
-| [Adafruit NeoKey 1x4](https://www.adafruit.com/product/4980)                                                 | 1        |
-| [PEC11R rotary encoders](https://www.digikey.co.uk/en/products/detail/bourns-inc/PEC11R-4215F-S0024/4499665) | 6        |
-| [TRS minijacks](https://thepihut.com/products/breadboard-friendly-3-5mm-stereo-headphone-jack)               | 2        |
-| [H11L1 optoisolator](https://www.digikey.co.uk/en/products/detail/onsemi/H11L1TVM/401266)                    | 1        |
-| [1N914 diode](https://www.digikey.co.uk/en/products/detail/onsemi/1N914/978749)                              | 1        |
-| 470Ω resistor                                                                                                | 1        |
-| 220Ω resistor                                                                                                | 1        |
-| 33Ω resistor                                                                                                 | 1        |
-| 10Ω resistor                                                                                                 | 1        |
-| Breadboard/protoboard                                                                                        | 2        |
+| Component                                                                                                        | Quantity |
+|----------------------------------------------------------------------------------------------------------------- | -------- |
+| [Raspberry Pi Pico](https://www.raspberrypi.com/products/raspberry-pi-pico/)                                     | 1        |
+| [Adafruit 128x64 1.3" Monochrome OLED](https://www.adafruit.com/product/938)                                     | 1        |
+| [Adafruit NeoKey 1x4](https://www.adafruit.com/product/4980)                                                     | 1        |
+| [Cherry MX-compatible key](https://thepihut.com/products/kailh-mechanical-key-switches-clicky-white-10-pack)     | 4        |
+| [Cherry MX keycap](https://thepihut.com/products/relegendable-plastic-keycaps-for-mx-compatible-switches-5-pack) | 4        |
+| [PEC11R rotary encoders](https://www.digikey.co.uk/en/products/detail/bourns-inc/PEC11R-4215F-S0024/4499665)     | 6        |
+| [TRS minijacks](https://thepihut.com/products/breadboard-friendly-3-5mm-stereo-headphone-jack)                   | 2        |
+| [H11L1 optoisolator](https://www.digikey.co.uk/en/products/detail/onsemi/H11L1TVM/401266)                        | 1        |
+| [1N914 diode](https://www.digikey.co.uk/en/products/detail/onsemi/1N914/978749)                                  | 1        |
+| 470Ω resistor                                                                                                    | 1        |
+| 220Ω resistor                                                                                                    | 1        |
+| 33Ω resistor                                                                                                     | 1        |
+| 10Ω resistor                                                                                                     | 1        |
+| Breadboard/protoboard                                                                                            | 2        |
 
 ### Build
 
