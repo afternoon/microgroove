@@ -73,6 +73,75 @@ Parts allow you to set up multiple tracks to play together in structures like
 call-and-response or ABAC. Try setting Track 1 to `CALL` and Track 2 to
 `RESP`, with all other parameters the same.
 
+## Hardware
+
+![Early Microgroove build on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard-photo.jpg)
+
+### Components
+
+| Component                                                                                                    | Quantity |
+|------------------------------------------------------------------------------------------------------------- | -------- |
+| [Raspberry Pi Pico](https://www.raspberrypi.com/products/raspberry-pi-pico/)                                 | 1        |
+| [Adafruit 128x64 1.3" Monochrome OLED](https://www.adafruit.com/product/938)                                 | 1        |
+| [Adafruit NeoKey 1x4](https://www.adafruit.com/product/4980)                                                 | 1        |
+| [PEC11R rotary encoders](https://www.digikey.co.uk/en/products/detail/bourns-inc/PEC11R-4215F-S0024/4499665) | 6        |
+| [TRS minijacks](https://thepihut.com/products/breadboard-friendly-3-5mm-stereo-headphone-jack)               | 2        |
+| [H11L1 optoisolator](https://www.digikey.co.uk/en/products/detail/onsemi/H11L1TVM/401266)                    | 1        |
+| [1N914 diode](https://www.digikey.co.uk/en/products/detail/onsemi/1N914/978749)                              | 1        |
+| 470Ω resistor                                                                                                | 1        |
+| 220Ω resistor                                                                                                | 1        |
+| 33Ω resistor                                                                                                 | 1        |
+| 10Ω resistor                                                                                                 | 1        |
+| Breadboard/protoboard                                                                                        | 2        |
+
+### Building a Microgroove
+
+Microgroove is a simple device based around the Raspberry Pi Pico microcontroller. Building your own
+should be straightforward (I knew nothing about electronics before I built it). The parts are fairly
+standard and easy to get hold of from a few different electronics vendors, for example Pi Hut in the
+UK or Adafruit in the US, and many more. You can build the device on a breadboard, or solder to
+something like a [protoboard](https://www.adafruit.com/product/4785) and mount inside a laser-cut case.
+
+This diagram shows the breadboard layout for Microgroove.
+
+![Microgroove components shown on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard.png)
+
+(If you want to build on a breadboard, you can get the Pico H, which has headers soldered on and
+slots right on.)
+
+See the [Fritzing
+file](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit.fzz) to view
+the components and their connections. There is also a schematic view, but it is currently a mess.
+
+The OLED display, NeoKey and encoders connect directly to pins on the Pico.
+
+The NeoKey is a new addition and isn't essential. It can be replaced with a few generic push
+buttons. I'm still writing the code to add it, so the code on GitHub expects buttons. The benefits
+of the NeoKey are per-button LEDs and a PCB that will hold Cherry MX-style clicky keys, which are
+👌.
+
+The MIDI section is also fairly simple. They are based on diyelectromusic's
+[MIDI in](https://diyelectromusic.wordpress.com/2021/02/15/midi-in-for-3-3v-microcontrollers/) and
+[MIDI out](https://diyelectromusic.wordpress.com/2021/01/23/midi-micropython-and-the-raspberry-pi-pico/)
+circuits (thanks Kevin!). You can use TRS minijacks like me, or classic MIDI DIN jacks. Either way,
+check the pinouts for the components you purchase carefully. Wrong wiring here might damage your
+gear.
+
+### Case
+
+The case is laser-cut, in my case from 3mm ply. You can find
+the [design as an SVG file
+here](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-case-lasercut.svg).
+
+The SVG file was creating in Tinkercad. You can [access the model
+here](https://www.tinkercad.com/things/e7vA3MJyz0E-microgroove-box). You can clone it and make
+your own modifications.
+
+When cut, the case pieces slot together, and the components screw or glue to the case with standoffs
+and M2 or M3 screws.
+
+If you don't have access to a laser cutter, you should be able to find cutting services online.
+
 ## Firmware
 
 The Microgroove firmware is written in Rust using the [RTIC](https://rtic.rs)
@@ -90,7 +159,6 @@ can be combined to change how the sequence is generated.
 
 The Machine concept is somewhat inspired by modular, where different modules can generate the
 rhythm or the melody, or process it.
-
 
 The code is split across two crates to allow the model and logic code to be platform-independent,
 and therefore testable.
@@ -159,41 +227,6 @@ Serial output will be displayed on the console. See the
 
 You can also use `probe-run` to flash binaries, but this requires a debug probe (which can be a 2nd
 Pi Pico).
-
-## Hardware
-
-![Early Microgroove build on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard-photo.jpg)
-
-Microgroove is a simple device based around the Raspberry Pi Pico microcontroller.
-Building your own should be straightforward (I didn't know anything about electronics before I built it).
-The parts are fairly standard and easy to get hold of from a few different electronics vendors, for example Pi Hut in the UK, Adafruit in the US, and many more.
-
-### Building a Microgroove
-
-Here is a breadboard diagram from Fritzing (as PNG, and the original FZZ file). Fritzing has a schematic view as well, but I didn't tidy that up (yet) so it's a mess. The Fritzing file also gives you the BOM, although the jacks and encoders are different parts from the ones I've used, and have different pinouts.
-
-![Microgroove components shown on a breadboard](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit-breadboard.png)
-
-As you can see, the MIDI parts are the only interesting parts really. The encoders, OLED screen and NeoKey are all connected straight to the Pi Pico, which is the MCU I'm using.
-
-The NeoKey is a new addition and isn't essential. It can be replaced with a few generic push buttons. I'm still writing the code to add it, so the code on GitHub expects buttons. The benefits of the NeoKey are per-button LEDs and a PCB that will hold Cherry MX-style clicky keys.
-
-These are the encoders I’m using: 
-https://www.digikey.co.uk/en/products/detail/bourns-inc/PEC11R-4215F-S0024/4499665
-
-I've also attached the SVG for the case laser cutting. This hopefully will give you some idea of what the end result should look like. I created this in Tinkercad. You can see the model here: https://www.tinkercad.com/things/e7vA3MJyz0E-microgroove-box
-
-See the Fritzing file for the required components and how to connect them.
-
-The circuit is pretty straightforward. I didn’t know any electronics before I built it.
-
-[MIDI in and out circuits](https://diyelectromusic.wordpress.com/2021/02/15/midi-in-for-3-3v-microcontrollers/).
-
-### Case
-
-The case is laser cut, in my case from 3mm ply. If you have access to a laser cutter, you can find the [design as an SVG file here](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-case-lasercut.svg). If not, you should be able to find cutting services online.
-
-When cut, the case pieces slot together, and the components screw or glue to the case with standoffs and M2 or M3 screws.
 
 ## Get in touch
 
