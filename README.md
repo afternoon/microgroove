@@ -90,7 +90,6 @@ case.
 |----------------------------------------------------------------------------------------------------------------- | -------- |
 | [Raspberry Pi Pico](https://www.raspberrypi.com/products/raspberry-pi-pico/)                                     | 1        |
 | [Adafruit 128x64 1.3" Monochrome OLED](https://www.adafruit.com/product/938)                                     | 1        |
-| [Adafruit NeoKey 1x4](https://www.adafruit.com/product/4980)                                                     | 1        |
 | [Cherry MX-compatible key](https://thepihut.com/products/kailh-mechanical-key-switches-clicky-white-10-pack)     | 4        |
 | [Cherry MX keycap](https://thepihut.com/products/relegendable-plastic-keycaps-for-mx-compatible-switches-5-pack) | 4        |
 | [PEC11R rotary encoders](https://www.digikey.co.uk/en/products/detail/bourns-inc/PEC11R-4215F-S0024/4499665)     | 6        |
@@ -116,7 +115,7 @@ See the [Fritzing
 file](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-circuit.fzz) to view
 the components and their connections. There is also a schematic view, but it is currently a mess.
 
-The OLED display, NeoKey and encoders connect directly to pins on the Pico.
+The OLED display, keys and encoders connect directly to pins on the Pico.
 
 The MIDI section is also fairly simple. They are based on diyelectromusic's
 [MIDI in](https://diyelectromusic.wordpress.com/2021/02/15/midi-in-for-3-3v-microcontrollers/) and
@@ -125,22 +124,18 @@ circuits (thanks Kevin!). You can use TRS minijacks like me, or classic MIDI DIN
 check the pinouts for the components you purchase carefully. Wrong wiring here might damage your
 gear.
 
-The NeoKey is a new addition and isn't essential. It can be replaced with a few generic push
-buttons. I'm still writing the code to support it. The benefits of the NeoKey are per-button RGB
-LEDs and a PCB that will hold Cherry MX-style clicky keys, which are 👌.
-
 ### Case
 
-The case is laser-cut, in my case from 3mm ply. You can find
+The case is laser-cut. I used 3mm ply. You can find
 the [design as an SVG file
 here](https://github.com/afternoon/microgroove/blob/main/hardware/microgroove-case-lasercut.svg).
 
 The SVG file was creating in Tinkercad. You can [access the model
-here](https://www.tinkercad.com/things/e7vA3MJyz0E-microgroove-box). You can clone it and make
-your own modifications.
+here](https://www.tinkercad.com/things/e7vA3MJyz0E-microgroove-box). If you would like to make
+your own modifications, you can clone the model in Tinkercad and customise it.
 
-When cut, the case pieces slot together, and the components screw or glue to the case with standoffs
-and M2 or M3 screws.
+When cut, the case pieces slot together, and the components screw or glue to the case with 
+standoffs and M2 or M3 screws.
 
 If you don't have access to a laser cutter, you should be able to find cutting services online.
 
