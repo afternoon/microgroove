@@ -109,7 +109,7 @@ impl Default for Sequencer {
                 // if ordering changes, need to update getters and setters, e.g. swing/set_swing
                 Box::new(Param::new_swing_param("SWING")),
             ])
-            .unwrap(),
+            .expect("should create sequencer param list from slice"),
             last_tick_instant_us: None,
             midi_tick_history: HistoryBuffer::<u64, MIDI_HISTORY_SAMPLE_COUNT>::new(),
         }
@@ -181,11 +181,11 @@ impl Sequencer {
                     if apply_swing {
                         output_messages
                             .push(ScheduledMidiMessage::Delayed(note_on_message, swing_delay))
-                            .unwrap();
+                            .expect("should push message to output_messages vec");
                     } else {
                         output_messages
                             .push(ScheduledMidiMessage::Immediate(note_on_message))
-                            .unwrap();
+                            .expect("should push message to output_messages vec");
                     }
 
                     let note_off_message =
@@ -203,7 +203,7 @@ impl Sequencer {
                             note_off_message,
                             note_off_time,
                         ))
-                        .unwrap();
+                        .expect("should push message to output_messages vec");
                 }
             }
         }

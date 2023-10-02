@@ -217,7 +217,7 @@ impl Sequence {
         for step in self.steps.iter_mut() {
             let next_note = notes.next();
             if let Some(step) = step {
-                step.note = next_note.unwrap();
+                step.note = next_note.expect("should get next note");
             }
         }
         self
@@ -301,7 +301,7 @@ impl Track {
                 MIDI_MIN_CHANNEL,
             )),
         ])
-        .unwrap()
+        .expect("should create track param list from slice")
     }
 
     pub fn params(&self) -> &ParamList {
@@ -339,7 +339,7 @@ impl Track {
         self.sequence
             .steps
             .get(self.step_num(tick) as usize)
-            .unwrap()
+            .expect("should get step at tick")
             .as_ref()
     }
 }

@@ -22,7 +22,7 @@ impl RandMelodyMachine {
                 Box::new(Param::new_note_param("ROOT")),
                 Box::new(Param::new_number_param("RANGE", 1, 60, 12)),
             ])
-            .unwrap(),
+            .expect("should create rand melody machine param list from slice"),
         }
     }
 

@@ -56,7 +56,7 @@ impl EuclideanRhythmMachine {
                 Box::new(Param::new_number_param("NOTES", 1, 32, 3)),
                 Box::new(Param::new_number_param("ROTATE", 0, 31, 0)),
             ])
-            .unwrap(),
+            .expect("should create euclidean rhythm machine param list from slice"),
         }
     }
 

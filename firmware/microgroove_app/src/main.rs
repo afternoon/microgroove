@@ -19,7 +19,7 @@ use panic_probe as _;
 mod app {
     use alloc_cortex_m::CortexMHeap;
     use core::fmt::Write;
-    use debouncr::{Debouncer, debounce_8, Edge, Repeat8};
+    use debouncr::{debounce_8, Debouncer, Edge, Repeat8};
     use defmt::{self, debug, error, info, trace};
     use defmt_rtt as _;
     use embedded_hal::digital::v2::InputPin;
@@ -35,14 +35,14 @@ mod app {
         input::{self, InputMode},
         midi,
         peripherals::{
-            setup, ButtonRhythmPin, ButtonMelodyPin, ButtonTrackPin, Display, MidiIn, MidiOut,
+            setup, ButtonMelodyPin, ButtonRhythmPin, ButtonTrackPin, Display, MidiIn, MidiOut,
         },
     };
     use microgroove_sequencer::{
-        Track, TRACK_COUNT,
         machine_resources::MachineResources,
         sequence_generator::SequenceGenerator,
         sequencer::{ScheduledMidiMessage, Sequencer},
+        Track, TRACK_COUNT,
     };
 
     #[global_allocator]
@@ -126,7 +126,11 @@ mod app {
         // initialise allocator for dynamic structures (machines, params, etc)
         unsafe {
             ALLOCATOR.init(cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES);
-                debug!("[init] heap_start={} heap_size_bytes={}", cortex_m_rt::heap_start() as usize, HEAP_SIZE_BYTES);
+            debug!(
+                "[init] heap_start={} heap_size_bytes={}",
+                cortex_m_rt::heap_start() as usize,
+                HEAP_SIZE_BYTES
+            );
         }
 
         // configure RTIC monotonic as source of timestamps for defmt
@@ -285,7 +289,11 @@ mod app {
         trace!("[read_buttons] start");
 
         // for each button
-        let track_pressed = ctx.local.button_track_pin.is_low().unwrap();
+        let track_pressed = ctx
+            .local
+            .button_track_pin
+            .is_low()
+            .expect("should get track button state");
         let track_edge = ctx.local.button_track_state.update(track_pressed);
         if track_edge == Some(Edge::Rising) {
             info!("[TRACK] pressed");
@@ -297,7 +305,11 @@ mod app {
             });
         }
 
-        let rhythm_pressed = ctx.local.button_rhythm_pin.is_low().unwrap();
+        let rhythm_pressed = ctx
+            .local
+            .button_rhythm_pin
+            .is_low()
+            .expect("should get rhythm button state");
         let rhythm_edge = ctx.local.button_rhythm_state.update(rhythm_pressed);
         if rhythm_edge == Some(Edge::Rising) {
             info!("[RHYTHM] pressed");
@@ -309,7 +321,11 @@ mod app {
             });
         }
 
-        let melody_pressed = ctx.local.button_melody_pin.is_low().unwrap();
+        let melody_pressed = ctx
+            .local
+            .button_melody_pin
+            .is_low()
+            .expect("should get melody button state");
         let melody_edge = ctx.local.button_melody_state.update(melody_pressed);
         if melody_edge == Some(Edge::Rising) {
             info!("[MELODY] pressed");
@@ -321,9 +337,12 @@ mod app {
             });
         }
 
-        read_buttons::spawn_after(BUTTON_READ_INTERVAL).unwrap();
+        read_buttons::spawn_after(BUTTON_READ_INTERVAL).expect("should spawn read_buttons task");
 
-        trace!("[read_buttons] elapsed_time={}", (monotonics::now() - start).to_micros());
+        trace!(
+            "[read_buttons] elapsed_time={}",
+            (monotonics::now() - start).to_micros()
+        );
     }
 
     /// Check encoders for position changes.
@@ -394,9 +413,11 @@ mod app {
                     let maybe_track = sequencer
                         .tracks
                         .get_mut(*current_track as usize)
-                        .unwrap()
+                        .expect("should get current track")
                         .as_mut();
-                    let generator = sequence_generators.get(*current_track as usize).unwrap();
+                    let generator = sequence_generators
+                        .get(*current_track as usize)
+                        .expect("should get current sequence generator");
                     let part = generator.part();
                     let view = match maybe_track {
                         Some(track) => {
@@ -424,7 +445,8 @@ mod app {
                                     .iter()
                                     .map(|param| {
                                         let mut value_string = String::new();
-                                        write!(value_string, "{}", param.value()).unwrap();
+                                        write!(value_string, "{}", param.value())
+                                            .expect("should write param value to string buf");
                                         (String::<6>::from(param.name()), value_string)
                                     })
                                     .collect(),

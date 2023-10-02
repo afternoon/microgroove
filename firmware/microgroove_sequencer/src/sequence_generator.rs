@@ -25,12 +25,12 @@ impl Default for SequenceGenerator {
             rhythm_machine: Box::new(UnitMachine::new()),
             melody_machine: Box::new(UnitMachine::new()),
             groove_params: ParamList::from_slice(&[Box::new(Param::new_part_param("PART"))])
-                .unwrap(),
+                .expect("should create groove param list from slice"),
             harmony_params: ParamList::from_slice(&[
                 Box::new(Param::new_scale_param("SCALE")),
                 Box::new(Param::new_key_param("KEY")),
             ])
-            .unwrap(),
+            .expect("should create harmony param list from slice"),
         }
     }
 }

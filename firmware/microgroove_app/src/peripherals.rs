@@ -155,7 +155,7 @@ pub fn setup(
 fn new_monotonic_timer(timer: TIMER, resets: &mut RESETS) -> Monotonic<Alarm0> {
     // setup monotonic timer for rtic
     let mut timer = Timer::new(timer, resets);
-    let monotonic_alarm = timer.alarm_0().unwrap();
+    let monotonic_alarm = timer.alarm_0().expect("should get alarm_0");
     Monotonic::new(timer, monotonic_alarm)
 }
 
@@ -195,9 +195,7 @@ fn new_display(
     )
     .into_buffered_graphics_mode();
 
-    display
-        .init()
-        .expect("display.init() should succeed");
+    display.init().expect("display.init() should succeed");
 
     display
 }

@@ -177,7 +177,9 @@ impl Into<midi_types::Note> for Note {
 impl From<midi_types::Note> for Note {
     fn from(note: midi_types::Note) -> Self {
         let note_num: u8 = note.into();
-        note_num.try_into().unwrap()
+        note_num
+            .try_into()
+            .expect("should transform note num into note")
     }
 }
 

@@ -89,8 +89,8 @@ impl PerformView {
     }
 
     fn draw_header(&self, display: &mut Display) -> DisplayResult {
-        let mut track_num_str: String<5> = String::from_str("TRK")
-            .expect("track_num_str from_str should succeed");
+        let mut track_num_str: String<5> =
+            String::from_str("TRK").expect("track_num_str from_str should succeed");
         write!(track_num_str, "{:02}", self.track_num)
             .expect("write! track_num_str should succeed");
         Text::with_baseline(
@@ -140,7 +140,9 @@ impl PerformView {
     }
 
     fn draw_sequence(&self, display: &mut Display) -> DisplayResult {
-        let sequence = self.sequence.as_ref()
+        let sequence = self
+            .sequence
+            .as_ref()
             .expect("get sequence as_ref should succeed");
         let length = sequence.len();
         let part_mask = Part::new_mask(self.part, length);
@@ -170,11 +172,12 @@ impl PerformView {
                     note_y_pos_min as i32,
                     note_y_pos_max as i32,
                 );
-                let step_style = if step_num == self.active_step_num.unwrap() {
-                    outline_style()
-                } else {
-                    filled_style()
-                };
+                let step_style =
+                    if step_num == self.active_step_num.expect("should get active step num") {
+                        outline_style()
+                    } else {
+                        filled_style()
+                    };
                 Rectangle::new(Point::new(x as i32, y as i32), step_size)
                     .into_styled(step_style)
                     .draw(display)?;
@@ -252,7 +255,7 @@ impl PerformView {
             Point::new(value2_x, row1_y),
         ];
         let params = zip(
-            self.param_data.as_ref().unwrap(),
+            self.param_data.as_ref().expect("should get param data"),
             zip(param_name_points, param_value_points),
         );
 

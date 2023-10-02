@@ -462,7 +462,7 @@ impl GridsRhythmMachine {
                 Box::new(Param::new_number_param("FILL", 0, 7, 4)),
                 Box::new(Param::new_number_param("PERT", 0, 7, 0)),
             ])
-            .unwrap(),
+            .expect("should create grids rhythm machine param list from slice"),
         }
     }
 

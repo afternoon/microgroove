@@ -48,15 +48,15 @@ pub fn apply_encoder_values(
     }
     let generator = sequence_generators
         .get_mut(*current_track as usize)
-        .unwrap();
+        .expect("should get mut ref to sequence generator for current track");
     match input_mode {
         InputMode::Track => {
             let track = sequencer
                 .tracks
                 .get_mut(*current_track as usize)
-                .unwrap()
+                .expect("should get current track")
                 .as_mut()
-                .unwrap();
+                .expect("should get current track as mut ref");
             let params = track.params_mut();
             update_params(&encoder_values, params)?;
             if rhythm_machine_changed(input_mode, &encoder_values) {
@@ -130,7 +130,11 @@ fn melody_machine_changed(input_mode: InputMode, encoder_values: &EncoderValues)
 }
 
 fn track_disabled(sequencer: &Sequencer, track_num: &u8) -> bool {
-    sequencer.tracks.get(*track_num as usize).unwrap().is_none()
+    sequencer
+        .tracks
+        .get(*track_num as usize)
+        .expect("should get track")
+        .is_none()
 }
 
 fn enable_track(sequencer: &mut Sequencer, track_num: &u8) {
