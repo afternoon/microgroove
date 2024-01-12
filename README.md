@@ -191,14 +191,16 @@ the language.
 Microgroove requires Rust nightly (it uses the
 [linked_list_allocator](https://crates.io/crates/linked_list_allocator) crate, which requires the
 `AllocRef` trait only in the nightly API). You'll also need to install the `thumbv6m-none-eabi`
-target, which allows compilation for the Pi Pico's ARM Cortex-M0+ CPU, and
+target, which allows compilation for the Pi Pico's ARM Cortex-M0+ CPU, 
 [cargo-embed](https://crates.io/crates/cargo-embed) which extends `cargo` with an `embed` command to
-flash binaries to embedded devices.
+flash binaries to embedded devices, and [flip-link](https://github.com/knurling-rs/flip-link), a 
+linker that helps protect embedded program from stack overflow.
 
 ```
 $ rustup toolchain install nightly
 $ rustup target add thumbv6m-none-eabi
 $ cargo install cargo-embed
+$ cargo install flip-link
 ```
 
 You can check your setup by running the `microgroove_sequencer` crate's unit tests.
