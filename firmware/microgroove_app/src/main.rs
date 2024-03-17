@@ -159,10 +159,11 @@ mod app {
 
         // create a new sequencer and build the first track
         let mut sequencer = Sequencer::default();
-        let generator = SequenceGenerator::default();
+        let mut generator = SequenceGenerator::default();
         let mut machine_resources = MachineResources::new(rosc);
         let mut new_track = Track::default();
-        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        generator.generate(&mut machine_resources);
+        new_track.sequence = generator.apply(new_track.length);
         sequencer.enable_track(0, new_track);
 
         // show a splash screen for a bit
@@ -371,7 +372,6 @@ mod app {
                             current_track,
                             sequencer,
                             sequence_generators,
-                            ctx.local.machine_resources,
                         )
                         .expect("should be able to apply encoder values");
                     },

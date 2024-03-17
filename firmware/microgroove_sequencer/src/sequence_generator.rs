@@ -64,16 +64,18 @@ impl SequenceGenerator {
         self.groove_params[0].set(ParamValue::Part(part));
     }
 
+    pub fn generate(&mut self, machine_resources: &mut MachineResources) {
+        self.melody_machine.generate(machine_resources);
+        self.rhythm_machine.generate(machine_resources);
+    }
+
     /// Generate a sequence by piping the initial sequence through the set of configured machines.
-    pub fn generate(&self, length: u8, machine_resources: &mut MachineResources) -> Sequence {
+    pub fn apply(&self, length: u8) -> Sequence {
         // a pipe operator would be nice to have here
         self.apply_part(
             self.apply_quantizer(
-                self.melody_machine.apply(
-                    self.rhythm_machine
-                        .apply(Self::initial_sequence(length), machine_resources),
-                    machine_resources,
-                ),
+                self.melody_machine
+                    .apply(self.rhythm_machine.apply(Self::initial_sequence(length))),
             ),
         )
     }
@@ -116,6 +118,7 @@ mod tests {
 
     use crate::{
         machine::rand_melody_machine::RandMelodyMachine,
+        machine_resources::MachineResources,
         midi::Note,
         param::ParamValue,
         quantizer::{Key, Scale},
@@ -131,8 +134,7 @@ mod tests {
     #[test]
     fn sequence_generator_apply_should_generate_a_sequence() {
         let generator = SequenceGenerator::default();
-        let mut machine_resources = MachineResources::new();
-        let sequence = generator.generate(8, &mut machine_resources);
+        let sequence = generator.apply(8);
         assert_eq!(8, sequence.len());
         assert!(sequence.iter().all(|step| {
             match step {
@@ -152,8 +154,7 @@ mod tests {
         let params = generator.harmony_params_mut();
         params[0].set(ParamValue::Scale(Scale::Major));
         params[1].set(ParamValue::Key(Key::B));
-        let mut machine_resources = MachineResources::new();
-        let sequence = generator.generate(8, &mut machine_resources);
+        let sequence = generator.apply(8);
         assert!(sequence.steps[0].is_some());
         let step0 = sequence.steps[0].as_ref().unwrap();
         let step0_note_num: u8 = step0.note.into();
@@ -166,8 +167,7 @@ mod tests {
     ) {
         let mut generator = SequenceGenerator::default();
         generator.set_part(Part::Call);
-        let mut machine_resources = MachineResources::new();
-        let sequence = generator.generate(8, &mut machine_resources);
+        let sequence = generator.apply(8);
         let expected_active_steps = vec![true, true, true, true, false, false, false, false];
         let actual_active_steps = sequence
             .iter()
@@ -181,8 +181,7 @@ mod tests {
         let mut generator = SequenceGenerator::default();
         generator.set_part(Part::A);
         generator.rhythm_machine = Box::new(RandMelodyMachine::new());
-        let mut machine_resources = MachineResources::new();
-        let sequence = generator.generate(12, &mut machine_resources);
+        let sequence = generator.apply(12);
         let half1 = &sequence.steps[0..6];
         let half2 = &sequence.steps[6..12];
         assert_eq!(half1, half2);
@@ -193,10 +192,21 @@ mod tests {
     ) {
         let mut generator = SequenceGenerator::default();
         generator.set_part(Part::A);
-        let mut machine_resources = MachineResources::new();
-        let sequence = generator.generate(7, &mut machine_resources);
+        let sequence = generator.apply(7);
         let half1 = &sequence.steps[0..3];
         let half2 = &sequence.steps[3..6];
         assert_eq!(half1, half2);
+    }
+
+    #[test]
+    fn sequence_generator_generate_should_randomise_sequencer_when_stochastic_machine_used() {
+        let mut generator = SequenceGenerator::default();
+        let mut machine_resources = MachineResources::new();
+        generator.rhythm_machine = Box::new(RandMelodyMachine::new());
+        generator.generate(&mut machine_resources);
+        let sequence1 = generator.apply(8);
+        generator.generate(&mut machine_resources);
+        let sequence2 = generator.apply(8);
+        assert_ne!(sequence1, sequence2);
     }
 }

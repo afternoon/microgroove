@@ -235,7 +235,7 @@ impl Sequencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{machine_resources::MachineResources, sequence_generator::SequenceGenerator};
+    use crate::sequence_generator::SequenceGenerator;
 
     #[test]
     fn sequencer_default_should_have_empty_tracks() {
@@ -246,9 +246,8 @@ mod tests {
     #[test]
     fn sequencer_enable_track_should_insert_new_track() {
         let generator = SequenceGenerator::default();
-        let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence = generator.apply(new_track.length);
         let mut sequencer = Sequencer::default();
         sequencer.enable_track(0, new_track);
         assert!(sequencer.tracks[0].is_some());
@@ -305,9 +304,8 @@ mod tests {
         let mut now_us = 0;
         let mut sequencer = Sequencer::default();
         let generator = SequenceGenerator::default();
-        let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence = generator.apply(new_track.length);
         sequencer.enable_track(0, new_track);
         sequencer.start_playing();
         let mut output_messages = vec![];
@@ -347,9 +345,8 @@ mod tests {
         let mut now_us = 0;
         let mut sequencer = Sequencer::default();
         let generator = SequenceGenerator::default();
-        let mut machine_resources = MachineResources::new();
         let mut new_track = Track::default();
-        new_track.sequence = generator.generate(new_track.length, &mut machine_resources);
+        new_track.sequence = generator.apply(new_track.length);
         sequencer.enable_track(0, new_track);
         sequencer.set_swing(Swing::Mpc54);
         sequencer.start_playing();

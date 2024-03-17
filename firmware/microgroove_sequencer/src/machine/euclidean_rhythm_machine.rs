@@ -60,12 +60,7 @@ impl EuclideanRhythmMachine {
         }
     }
 
-    fn process(
-        sequence: Sequence,
-        _machine_resources: &mut MachineResources,
-        notes: u8,
-        rotate: u8,
-    ) -> Sequence {
+    fn process(sequence: Sequence, notes: u8, rotate: u8) -> Sequence {
         let steps = sequence.len();
         let notes = (notes as usize).min(steps);
         let address = ((steps - 1) * 32) + (notes - 1);
@@ -91,7 +86,9 @@ impl Machine for EuclideanRhythmMachine {
         &mut self.params
     }
 
-    fn apply(&self, sequence: Sequence, machine_resources: &mut MachineResources) -> Sequence {
+    fn generate(&mut self, _machine_resources: &mut MachineResources) {}
+
+    fn apply(&self, sequence: Sequence) -> Sequence {
         let notes = self.params[0]
             .value()
             .try_into()
@@ -100,7 +97,7 @@ impl Machine for EuclideanRhythmMachine {
             .value()
             .try_into()
             .expect("unexpected rotate param for EuclideanRhythmMachine");
-        Self::process(sequence, machine_resources, notes, rotate)
+        Self::process(sequence, notes, rotate)
     }
 }
 
@@ -109,16 +106,12 @@ unsafe impl Send for EuclideanRhythmMachine {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{machine_resources::MachineResources, sequence_generator::SequenceGenerator};
+    use crate::sequence_generator::SequenceGenerator;
 
     #[test]
     fn euclidean_rhythm_machine_should_smash_out_euclidean_bangers_like_it_is_not_a_thing() {
-        let mut machine_resources = MachineResources::new();
         let machine = EuclideanRhythmMachine::new();
-        let output_sequence = machine.apply(
-            SequenceGenerator::initial_sequence(8),
-            &mut machine_resources,
-        );
+        let output_sequence = machine.apply(SequenceGenerator::initial_sequence(8));
         let active_steps: Vec<bool> = output_sequence.iter().map(|opt| opt.is_some()).collect();
         assert_eq!(
             active_steps,

@@ -451,27 +451,27 @@ impl TryFrom<u8> for Instrument {
 #[derive(Debug)]
 pub struct GridsRhythmMachine {
     params: ParamList,
+    seed: u64,
 }
 
 impl GridsRhythmMachine {
     pub fn new() -> GridsRhythmMachine {
-        GridsRhythmMachine {
-            params: ParamList::from_slice(&[
-                Box::new(Param::new_instrument_param("INST")),
-                Box::new(Param::new_number_param("TABLE", 0, 24, 0)),
-                Box::new(Param::new_number_param("FILL", 0, 7, 4)),
-                Box::new(Param::new_number_param("PERT", 0, 7, 0)),
-            ])
-            .expect("should create grids rhythm machine param list from slice"),
-        }
+        let params = ParamList::from_slice(&[
+            Box::new(Param::new_instrument_param("INST")),
+            Box::new(Param::new_number_param("TABLE", 0, 24, 0)),
+            Box::new(Param::new_number_param("FILL", 0, 7, 4)),
+            Box::new(Param::new_number_param("PERT", 0, 7, 0)),
+        ])
+        .expect("should create grids rhythm machine param list from slice");
+        GridsRhythmMachine { params, seed: 0 }
     }
 
     fn process(
         sequence: Sequence,
-        machine_resources: &mut MachineResources,
         table: u8,
         instrument: Instrument,
         fill: u8,
+        seed: u64,
         perturbation: u8,
     ) -> Sequence {
         let pattern_start = 32 * instrument as usize;
@@ -479,7 +479,7 @@ impl GridsRhythmMachine {
         let pattern = &GRIDS_PATTERNS[table as usize][pattern_start..pattern_end];
         let threshold = 255 - fill * 32;
         let active_steps = pattern.iter().map(|&step_level| {
-            let some_rand = machine_resources.random_u64() >> 56; // 8 bit = 0..=255
+            let some_rand = seed >> 56; // 8 bit = 0..=255
             let perturb_delta = (some_rand * perturbation as u64 >> 5) as u8;
             let level = step_level.saturating_add(perturb_delta);
             level > threshold
@@ -501,7 +501,11 @@ impl Machine for GridsRhythmMachine {
         &mut self.params
     }
 
-    fn apply(&self, sequence: Sequence, machine_resources: &mut MachineResources) -> Sequence {
+    fn generate(&mut self, machine_resources: &mut MachineResources) {
+        self.seed = machine_resources.random_u64();
+    }
+
+    fn apply(&self, sequence: Sequence) -> Sequence {
         let instrument = self.params[0]
             .value()
             .try_into()
@@ -518,14 +522,7 @@ impl Machine for GridsRhythmMachine {
             .value()
             .try_into()
             .expect("unexpected perturbation param for GridsRhythmMachine");
-        Self::process(
-            sequence,
-            machine_resources,
-            table,
-            instrument,
-            fill,
-            perturbation,
-        )
+        Self::process(sequence, table, instrument, fill, self.seed, perturbation)
     }
 }
 
@@ -535,18 +532,13 @@ unsafe impl Send for GridsRhythmMachine {}
 mod tests {
     use super::*;
     use crate::{
-        machine_resources::MachineResources, param::ParamValue,
-        sequence_generator::SequenceGenerator,
+        machine::MachineResources, param::ParamValue, sequence_generator::SequenceGenerator,
     };
 
     #[test]
     fn grids_rhythm_machine_with_default_params_should_generate_default_beat() {
-        let mut machine_resources = MachineResources::new();
         let machine = GridsRhythmMachine::new();
-        let output_sequence = machine.apply(
-            SequenceGenerator::initial_sequence(32),
-            &mut machine_resources,
-        );
+        let output_sequence = machine.apply(SequenceGenerator::initial_sequence(32));
         let active_steps: Vec<bool> = output_sequence.iter().map(|opt| opt.is_some()).collect();
         assert_eq!(
             active_steps,
@@ -560,13 +552,9 @@ mod tests {
 
     #[test]
     fn grids_rhythm_machine_with_fill_maxxed_should_generate_filled_beat() {
-        let mut machine_resources = MachineResources::new();
         let mut machine = GridsRhythmMachine::new();
         machine.params[2].set(ParamValue::Number(7)); // FILL
-        let output_sequence = machine.apply(
-            SequenceGenerator::initial_sequence(32),
-            &mut machine_resources,
-        );
+        let output_sequence = machine.apply(SequenceGenerator::initial_sequence(32));
         let active_steps: Vec<bool> = output_sequence.iter().map(|opt| opt.is_some()).collect();
         assert_eq!(
             active_steps,
@@ -580,14 +568,12 @@ mod tests {
 
     #[test]
     fn grids_rhythm_machine_with_perturbation_enabled_should_flip_out_and_do_funky_shit() {
-        let mut machine_resources = MachineResources::new();
         let mut machine = GridsRhythmMachine::new();
         machine.params[2].set(ParamValue::Number(7)); // FILL
         machine.params[3].set(ParamValue::Number(7)); // PERT
-        let output_sequence = machine.apply(
-            SequenceGenerator::initial_sequence(32),
-            &mut machine_resources,
-        );
+        let mut machine_resources = MachineResources::new();
+        machine.generate(&mut machine_resources);
+        let output_sequence = machine.apply(SequenceGenerator::initial_sequence(32));
         let active_steps: Vec<bool> = output_sequence.iter().map(|opt| opt.is_some()).collect();
         assert_ne!(
             active_steps,

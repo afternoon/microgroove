@@ -23,23 +23,24 @@ pub enum MachineError {
 /// Microgroove, each `Track` has 2 machines, one to generate the rhythm, one for the melody.
 pub trait Machine: Debug + Send {
     fn name(&self) -> &str; // TODO redundant because Display implmented for machine IDs
-    fn apply(&self, sequence: Sequence, machine_resources: &mut MachineResources) -> Sequence;
+    fn generate(&mut self, machine_resources: &mut MachineResources);
+    fn apply(&self, sequence: Sequence) -> Sequence;
     fn params(&self) -> &ParamList;
     fn params_mut(&mut self) -> &mut ParamList;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum RhythmMachineId {
-    #[default]
     Unit,
+    #[default]
     Euclid,
     Grids,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum MelodyMachineId {
-    #[default]
     Unit,
+    #[default]
     Rand,
 }
 

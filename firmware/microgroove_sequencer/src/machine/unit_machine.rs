@@ -28,7 +28,9 @@ impl Machine for UnitMachine {
         &mut self.params
     }
 
-    fn apply(&self, sequence: Sequence, _machine_resources: &mut MachineResources) -> Sequence {
+    fn generate(&mut self, _machine_resources: &mut MachineResources) {}
+
+    fn apply(&self, sequence: Sequence) -> Sequence {
         sequence
     }
 }
@@ -38,17 +40,13 @@ unsafe impl Send for UnitMachine {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{machine_resources::MachineResources, sequence_generator::SequenceGenerator};
+    use crate::sequence_generator::SequenceGenerator;
 
     #[test]
     fn unitmachine_should_passthrough_sequence_unmodified() {
-        let mut machine_resources = MachineResources::new();
         let machine = UnitMachine::new();
         let input_sequence = SequenceGenerator::initial_sequence(8);
-        let output_sequence = machine.apply(
-            SequenceGenerator::initial_sequence(8),
-            &mut machine_resources,
-        );
+        let output_sequence = machine.apply(SequenceGenerator::initial_sequence(8));
         assert_eq!(output_sequence, input_sequence);
     }
 }

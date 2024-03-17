@@ -1,7 +1,6 @@
 use crate::encoder::encoder_array::ENCODER_COUNT;
 use microgroove_sequencer::{
     machine::{MelodyMachineId, RhythmMachineId},
-    machine_resources::MachineResources,
     param::{wrapping_add, ParamError, ParamList, ParamValue},
     sequence_generator::SequenceGenerator,
     sequencer::Sequencer,
@@ -36,7 +35,6 @@ pub fn apply_encoder_values(
     current_track: &mut u8,
     sequencer: &mut Sequencer,
     sequence_generators: &mut Vec<SequenceGenerator, TRACK_COUNT>,
-    machine_resources: &mut MachineResources,
 ) -> Result<(), ParamError> {
     if track_num_has_changed(input_mode, &encoder_values) {
         update_current_track(&encoder_values, current_track);
@@ -83,7 +81,7 @@ pub fn apply_encoder_values(
             update_params(&encoder_values, generator.harmony_params_mut())?;
         }
     }
-    update_sequence(sequencer, current_track, generator, machine_resources);
+    update_sequence(sequencer, current_track, generator);
     Ok(())
 }
 
@@ -177,13 +175,12 @@ fn update_sequence(
     sequencer: &mut Sequencer,
     track_num: &u8,
     generator: &SequenceGenerator,
-    machine_resources: &mut MachineResources,
 ) {
     debug!("[update_sequence] track_num={}", track_num);
     match sequencer.tracks.get_mut(*track_num as usize) {
         Some(mut_track) => match mut_track.as_mut() {
             Some(track) => {
-                track.sequence = generator.generate(track.length, machine_resources);
+                track.sequence = generator.apply(track.length);
             }
             None => {
                 error!("[update_sequence] tried to update sequence for disabled track");
