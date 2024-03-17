@@ -1,0 +1,8 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "MCU_RaspberryPi_and_Boards")(type "KiCad")(uri "${KIPRJMOD}/lib/rp_pico/MCU_RaspberryPi_and_Boards.kicad_sym")(options "")(descr ""))
+  (lib (name "NHD-2.7-12864WDW3-M")(type "KiCad")(uri "${KIPRJMOD}/lib/NHD-2/NHD-2.7-12864WDW3-M.kicad_sym")(options "")(descr ""))
+  (lib (name "UJ2-MIBH-4-SMT-TR")(type "KiCad")(uri "${KIPRJMOD}/lib/UJ2-MIBH-4-SMT-TR/UJ2-MIBH-4-SMT-TR.kicad_sym")(options "")(descr ""))
+  (lib (name "PEC11R-4215F-S0024")(type "KiCad")(uri "${KIPRJMOD}/lib/PEC11R_4215F_S0024/PEC11R-4215F-S0024.kicad_sym")(options "")(descr ""))
+  (lib (name "SJ1-3513")(type "KiCad")(uri "${KIPRJMOD}/lib/SJ1_3513/SJ1-3513.kicad_sym")(options "")(descr ""))
+)
