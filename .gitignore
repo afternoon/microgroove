@@ -3,3 +3,5 @@
 **/.DS_Store
 hardware/microgroove-backups/
 hardware/fp-info-cache
+hardware/#auto_saved_files#
+hardware/*.lck
