@@ -5,4 +5,5 @@
   (lib (name "PEC11R-4215F-S0024")(type "KiCad")(uri "${KIPRJMOD}/lib/PEC11R_4215F_S0024/PEC11R-4215F-S0024.kicad_sym")(options "")(descr ""))
   (lib (name "SJ1-3513")(type "KiCad")(uri "${KIPRJMOD}/lib/SJ1_3513/SJ1-3513.kicad_sym")(options "")(descr ""))
   (lib (name "NHD-2.7-12864WDW3")(type "KiCad")(uri "${KIPRJMOD}/lib/NHD-2.7-12864WDW3/NHD-2.7-12864WDW3.kicad_sym")(options "")(descr ""))
+  (lib (name "SW4_TL1100F160Q6JBLK_EWI")(type "KiCad")(uri "${KIPRJMOD}/lib/SW4_TL1100F160Q6JBLK_EWI/SW4_TL1100F160Q6JBLK_EWI.kicad_sym")(options "")(descr ""))
 )

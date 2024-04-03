@@ -2576,38 +2576,50 @@
 				)
 			)
 		)
-		(symbol "Switch:SW_Push_Dual"
+		(symbol "SW4_TL1100F160Q6JBLK_EWI:TL1100F160Q6JBLK"
 			(pin_names
-				(offset 1.016) hide)
+				(offset 0.254)
+			)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(property "Reference" "SW"
-				(at 0 7.62 0)
+				(at 0 3.81 0)
 				(effects
 					(font
-						(size 1.27 1.27)
+						(size 1.524 1.524)
 					)
 				)
 			)
-			(property "Value" "SW_Push_Dual"
-				(at 0 -6.35 0)
+			(property "Value" "TL1100F160Q6JBLK"
+				(at 0 0 0)
 				(effects
 					(font
-						(size 1.27 1.27)
+						(size 1.524 1.524)
 					)
 				)
 			)
-			(property "Footprint" ""
-				(at 0 7.62 0)
+			(property "Footprint" "SW4_TL1100F160Q6JBLK_EWI"
+				(at 0 0 0)
 				(effects
 					(font
 						(size 1.27 1.27)
+						(italic yes)
 					)
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "~"
+			(property "Datasheet" "TL1100F160Q6JBLK"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" ""
 				(at 0 0 0)
 				(effects
 					(font
@@ -2616,7 +2628,15 @@
 					(hide yes)
 				)
 			)
-			(property "Description" "Push button switch, generic, symbol, four pins"
+			(property "ki_locked" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "TL1100F160Q6JBLK"
 				(at 0 0 0)
 				(effects
 					(font
@@ -2625,7 +2645,7 @@
 					(hide yes)
 				)
 			)
-			(property "ki_keywords" "switch normally-open pushbutton push-button"
+			(property "ki_fp_filters" "SW4_TL1100F160Q6JBLK_EWI"
 				(at 0 0 0)
 				(effects
 					(font
@@ -2634,23 +2654,12 @@
 					(hide yes)
 				)
 			)
-			(symbol "SW_Push_Dual_0_1"
+			(symbol "TL1100F160Q6JBLK_0_1"
 				(circle
-					(center -2.032 -2.54)
-					(radius 0.508)
+					(center -3.175 0)
+					(radius 0.635)
 					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(circle
-					(center -2.032 2.54)
-					(radius 0.508)
-					(stroke
-						(width 0)
+						(width 0.254)
 						(type default)
 					)
 					(fill
@@ -2659,10 +2668,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 -0.508) (xy 0 -1.016)
+						(xy -5.08 0) (xy -3.81 0)
 					)
 					(stroke
-						(width 0)
+						(width 0.2032)
 						(type default)
 					)
 					(fill
@@ -2671,10 +2680,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 0.508) (xy 0 0)
+						(xy -3.175 0) (xy 3.81 1.905)
 					)
 					(stroke
-						(width 0)
+						(width 0.2032)
 						(type default)
 					)
 					(fill
@@ -2683,70 +2692,10 @@
 				)
 				(polyline
 					(pts
-						(xy 0 1.016) (xy 0 1.524)
+						(xy 5.08 0) (xy 3.81 0)
 					)
 					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 2.032) (xy 0 2.54)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 3.048) (xy 0 3.556)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 0 3.81) (xy 0 5.588)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.54 -1.27) (xy -2.54 -1.27)
-					)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(polyline
-					(pts
-						(xy 2.54 3.81) (xy -2.54 3.81)
-					)
-					(stroke
-						(width 0)
+						(width 0.2032)
 						(type default)
 					)
 					(fill
@@ -2754,29 +2703,18 @@
 					)
 				)
 				(circle
-					(center 2.032 -2.54)
-					(radius 0.508)
+					(center 3.175 0)
+					(radius 0.635)
 					(stroke
-						(width 0)
+						(width 0.254)
 						(type default)
 					)
 					(fill
 						(type none)
 					)
 				)
-				(circle
-					(center 2.032 2.54)
-					(radius 0.508)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(pin passive line
-					(at -5.08 2.54 0)
+				(pin unspecified line
+					(at -7.62 0 0)
 					(length 2.54)
 					(name "1"
 						(effects
@@ -2793,8 +2731,8 @@
 						)
 					)
 				)
-				(pin passive line
-					(at 5.08 2.54 180)
+				(pin unspecified line
+					(at 7.62 0 180)
 					(length 2.54)
 					(name "2"
 						(effects
@@ -2809,55 +2747,6 @@
 								(size 1.27 1.27)
 							)
 						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -2.54 0)
-					(length 2.54)
-					(name "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 5.08 -2.54 180)
-					(length 2.54)
-					(name "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(symbol "SW_Push_Dual_1_1"
-				(rectangle
-					(start -3.175 5.715)
-					(end 3.175 -4.445)
-					(stroke
-						(width 0)
-						(type default)
-					)
-					(fill
-						(type background)
 					)
 				)
 			)
@@ -3505,6 +3394,12 @@
 		)
 	)
 	(junction
+		(at 166.37 177.8)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "034de76e-a37b-4b62-b9f9-d76f7092e0ae")
+	)
+	(junction
 		(at 68.58 135.89)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3529,10 +3424,10 @@
 		(uuid "18775913-3a6b-416c-91a5-6393b574cce5")
 	)
 	(junction
-		(at 124.46 171.45)
+		(at 148.59 177.8)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "202cdd74-2abb-4921-b415-131451108342")
+		(uuid "3b28bddd-326e-4d6f-91c7-576a6b0f087b")
 	)
 	(junction
 		(at 78.74 33.02)
@@ -3571,6 +3466,12 @@
 		(uuid "7179a6cc-170a-418f-a11a-3d91a121989e")
 	)
 	(junction
+		(at 138.43 177.8)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "7f86c180-d5a9-4f65-beeb-e91d87450c14")
+	)
+	(junction
 		(at 228.6 99.06)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3581,18 +3482,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "831866ff-38ff-4fdc-b84b-1c73766b0d45")
-	)
-	(junction
-		(at 138.43 171.45)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "8a739f24-39f5-4eff-9456-a2bce7d035ee")
-	)
-	(junction
-		(at 166.37 171.45)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "8b258352-6277-45bd-8d89-49088999617b")
 	)
 	(junction
 		(at 226.06 99.06)
@@ -3631,10 +3520,10 @@
 		(uuid "be223352-a028-4225-8e29-34eda12f2fd3")
 	)
 	(junction
-		(at 152.4 171.45)
+		(at 127 177.8)
 		(diameter 0)
 		(color 0 0 0 0)
-		(uuid "d9b3ffb3-c3d6-46d1-802e-2d5d142cc3e1")
+		(uuid "c1f45945-2c63-48f9-9284-e9edb0284c35")
 	)
 	(junction
 		(at 198.12 101.6)
@@ -3696,6 +3585,16 @@
 	)
 	(wire
 		(pts
+			(xy 115.57 120.65) (xy 113.03 120.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0ba73d1d-9e18-41b2-a26f-ffd4fecae1b0")
+	)
+	(wire
+		(pts
 			(xy 64.77 133.35) (xy 74.93 133.35)
 		)
 		(stroke
@@ -3726,13 +3625,13 @@
 	)
 	(wire
 		(pts
-			(xy 110.49 171.45) (xy 110.49 166.37)
+			(xy 115.57 146.05) (xy 127 146.05)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "12143667-3223-401f-ba60-58b50bda885c")
+		(uuid "108090f9-3b18-43fd-8550-c431223d759b")
 	)
 	(wire
 		(pts
@@ -3746,23 +3645,13 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 102.87) (xy 151.13 102.87)
+			(xy 151.13 102.87) (xy 166.37 102.87)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "14f85eab-e51d-4924-b849-7227b0160f79")
-	)
-	(wire
-		(pts
-			(xy 138.43 171.45) (xy 124.46 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "150114ec-ca34-4284-84af-f914343d7096")
 	)
 	(wire
 		(pts
@@ -3856,16 +3745,6 @@
 	)
 	(wire
 		(pts
-			(xy 128.27 161.29) (xy 128.27 146.05)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "27c065a8-f4c2-4510-8956-5bd655945e0c")
-	)
-	(wire
-		(pts
 			(xy 92.71 115.57) (xy 115.57 115.57)
 		)
 		(stroke
@@ -3873,26 +3752,6 @@
 			(type default)
 		)
 		(uuid "296ee696-c968-49b7-b804-eb0ee01b4162")
-	)
-	(wire
-		(pts
-			(xy 128.27 146.05) (xy 151.13 146.05)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2978e7d2-8174-413a-8886-4bc7f1693984")
-	)
-	(wire
-		(pts
-			(xy 100.33 120.65) (xy 115.57 120.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2c273c9f-256d-40ff-89c2-84f2a7e6ccf3")
 	)
 	(wire
 		(pts
@@ -3906,13 +3765,13 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 120.65) (xy 151.13 120.65)
+			(xy 138.43 171.45) (xy 138.43 177.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "2e7ab227-0a9f-4399-884a-d70179badb33")
+		(uuid "2f4e6e83-8957-4b2c-bf37-253657976b86")
 	)
 	(wire
 		(pts
@@ -3976,6 +3835,16 @@
 	)
 	(wire
 		(pts
+			(xy 148.59 177.8) (xy 166.37 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "394642dd-b6ee-4014-a2c3-5066e16120e6")
+	)
+	(wire
+		(pts
 			(xy 151.13 113.03) (xy 213.36 113.03)
 		)
 		(stroke
@@ -4003,6 +3872,16 @@
 			(type default)
 		)
 		(uuid "3d77d641-6c45-4132-a895-0a8bd1d09d7f")
+	)
+	(wire
+		(pts
+			(xy 153.67 156.21) (xy 153.67 120.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3e70a6f5-efe9-4212-a361-1ee05599f806")
 	)
 	(wire
 		(pts
@@ -4046,16 +3925,6 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 102.87) (xy 153.67 96.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "462beef1-5c93-498f-adba-48a9c17602dc")
-	)
-	(wire
-		(pts
 			(xy 228.6 96.52) (xy 228.6 99.06)
 		)
 		(stroke
@@ -4096,6 +3965,16 @@
 	)
 	(wire
 		(pts
+			(xy 127 177.8) (xy 138.43 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "516ef020-4624-4dfe-a708-abc71b4c5828")
+	)
+	(wire
+		(pts
 			(xy 226.06 96.52) (xy 226.06 99.06)
 		)
 		(stroke
@@ -4103,6 +3982,26 @@
 			(type default)
 		)
 		(uuid "52150de9-337e-4c2f-88ba-1825cbe41ba2")
+	)
+	(wire
+		(pts
+			(xy 113.03 156.21) (xy 115.57 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "55d5d6d9-2c2a-4b34-af82-e82adb830777")
+	)
+	(wire
+		(pts
+			(xy 148.59 171.45) (xy 148.59 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "56f0383b-62d9-4cc5-a1f0-a19748c6937f")
 	)
 	(wire
 		(pts
@@ -4116,23 +4015,13 @@
 	)
 	(wire
 		(pts
-			(xy 152.4 171.45) (xy 152.4 166.37)
+			(xy 166.37 177.8) (xy 166.37 184.15)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "5b624a8f-bb80-44f4-bf1c-4b4209defa3f")
-	)
-	(wire
-		(pts
-			(xy 151.13 123.19) (xy 151.13 146.05)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5d507b17-113c-47ce-9f40-5f692895fe21")
+		(uuid "59c631a4-a75b-4a9e-86a9-a619fc92afb8")
 	)
 	(wire
 		(pts
@@ -4153,16 +4042,6 @@
 			(type default)
 		)
 		(uuid "6548375f-747c-4b21-a2a9-fb4ff681fed6")
-	)
-	(wire
-		(pts
-			(xy 166.37 171.45) (xy 152.4 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "66c01d7d-54d4-4388-a0aa-4814ca8af98a")
 	)
 	(wire
 		(pts
@@ -4246,16 +4125,6 @@
 	)
 	(wire
 		(pts
-			(xy 115.57 123.19) (xy 115.57 161.29)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7931d3e7-de05-4eff-81ce-300faab32502")
-	)
-	(wire
-		(pts
 			(xy 68.58 173.99) (xy 68.58 186.69)
 		)
 		(stroke
@@ -4276,16 +4145,6 @@
 	)
 	(wire
 		(pts
-			(xy 153.67 148.59) (xy 153.67 120.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7e017aa1-735d-4c88-9a7c-2bf30a723d37")
-	)
-	(wire
-		(pts
 			(xy 243.84 99.06) (xy 243.84 110.49)
 		)
 		(stroke
@@ -4303,16 +4162,6 @@
 			(type default)
 		)
 		(uuid "7f50cf5b-e994-4c1d-9c32-7b45a502dab4")
-	)
-	(wire
-		(pts
-			(xy 152.4 171.45) (xy 138.43 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "821f5f00-e38a-48e6-8f78-c129063cfc16")
 	)
 	(wire
 		(pts
@@ -4376,6 +4225,16 @@
 	)
 	(wire
 		(pts
+			(xy 166.37 102.87) (xy 166.37 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8c5ed2bf-f485-4646-8d56-9bdd09254101")
+	)
+	(wire
+		(pts
 			(xy 195.58 96.52) (xy 195.58 99.06)
 		)
 		(stroke
@@ -4386,6 +4245,16 @@
 	)
 	(wire
 		(pts
+			(xy 113.03 120.65) (xy 113.03 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "92fccab6-273d-4b3d-8c8f-44bddf954183")
+	)
+	(wire
+		(pts
 			(xy 220.98 99.06) (xy 223.52 99.06)
 		)
 		(stroke
@@ -4393,6 +4262,16 @@
 			(type default)
 		)
 		(uuid "93f26387-494a-4d59-93fb-ce99c9658f60")
+	)
+	(wire
+		(pts
+			(xy 151.13 123.19) (xy 151.13 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "971f8d3e-d3fa-4440-9fdb-680b7c43a3f9")
 	)
 	(wire
 		(pts
@@ -4436,13 +4315,13 @@
 	)
 	(wire
 		(pts
-			(xy 142.24 148.59) (xy 153.67 148.59)
+			(xy 151.13 146.05) (xy 138.43 146.05)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "9cc8846f-8500-4e14-acdd-ccee279e6c66")
+		(uuid "9ade66b0-c43f-4f08-9b52-9eea3c9ef275")
 	)
 	(wire
 		(pts
@@ -4453,6 +4332,16 @@
 			(type default)
 		)
 		(uuid "9df74673-3bf8-425c-8cd2-eac60c59292b")
+	)
+	(wire
+		(pts
+			(xy 138.43 177.8) (xy 148.59 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9e3a626b-ef0d-44db-9fdb-93461766abc6")
 	)
 	(wire
 		(pts
@@ -4476,23 +4365,13 @@
 	)
 	(wire
 		(pts
-			(xy 115.57 161.29) (xy 114.3 161.29)
+			(xy 151.13 120.65) (xy 153.67 120.65)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "a36bf2ee-eace-4f5d-a493-6ddbda6ad7a1")
-	)
-	(wire
-		(pts
-			(xy 166.37 101.6) (xy 166.37 171.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a5ecdaaa-5308-4308-a4e6-2b864b12c1ae")
+		(uuid "a4856151-3de3-4e4f-b1a4-2e42747c6c55")
 	)
 	(wire
 		(pts
@@ -4513,16 +4392,6 @@
 			(type default)
 		)
 		(uuid "a7787043-9c21-4e8c-ba03-1d8657f5f421")
-	)
-	(wire
-		(pts
-			(xy 138.43 171.45) (xy 138.43 166.37)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a7b469a5-93a0-4eea-b67c-bb0696a39b7c")
 	)
 	(wire
 		(pts
@@ -4573,16 +4442,6 @@
 			(type default)
 		)
 		(uuid "b18aceb8-3f46-4766-99d0-15a67b13adfd")
-	)
-	(wire
-		(pts
-			(xy 100.33 161.29) (xy 100.33 120.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b25290a1-8a3d-4f84-a5f1-36318a651dfd")
 	)
 	(wire
 		(pts
@@ -4676,6 +4535,16 @@
 	)
 	(wire
 		(pts
+			(xy 115.57 177.8) (xy 127 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bd3a9232-d320-4333-a7f0-6c52adbb45c2")
+	)
+	(wire
+		(pts
 			(xy 88.9 53.34) (xy 90.17 53.34)
 		)
 		(stroke
@@ -4716,13 +4585,13 @@
 	)
 	(wire
 		(pts
-			(xy 124.46 171.45) (xy 110.49 171.45)
+			(xy 166.37 140.97) (xy 166.37 177.8)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "c31e0566-bbab-493f-80ae-42177904ca16")
+		(uuid "c3863922-abb2-4052-a178-f453f50c738b")
 	)
 	(wire
 		(pts
@@ -4743,16 +4612,6 @@
 			(type default)
 		)
 		(uuid "c6473f03-52e0-403c-a86c-cfc201aae35f")
-	)
-	(wire
-		(pts
-			(xy 166.37 171.45) (xy 166.37 184.15)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c93548a3-f686-46a5-8604-2a5c6b198a33")
 	)
 	(wire
 		(pts
@@ -4826,6 +4685,16 @@
 	)
 	(wire
 		(pts
+			(xy 115.57 123.19) (xy 115.57 146.05)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d870e227-1058-4553-83fc-50b7f759c639")
+	)
+	(wire
+		(pts
 			(xy 64.77 82.55) (xy 115.57 82.55)
 		)
 		(stroke
@@ -4833,16 +4702,6 @@
 			(type default)
 		)
 		(uuid "db92e720-0e2c-481c-ae34-e4cedb5623f0")
-	)
-	(wire
-		(pts
-			(xy 153.67 96.52) (xy 156.21 96.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "df9c570a-b78f-4343-805d-be3f96077f76")
 	)
 	(wire
 		(pts
@@ -4863,6 +4722,16 @@
 			(type default)
 		)
 		(uuid "e24e074c-ea44-4366-b1bf-fffb3100dd9b")
+	)
+	(wire
+		(pts
+			(xy 127 146.05) (xy 127 156.21)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e26da45f-ed3a-47c5-be55-7a69ec52d832")
 	)
 	(wire
 		(pts
@@ -4906,6 +4775,16 @@
 	)
 	(wire
 		(pts
+			(xy 115.57 171.45) (xy 115.57 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ebafd56f-adcb-4626-8410-11933d02dedf")
+	)
+	(wire
+		(pts
 			(xy 67.31 62.23) (xy 58.42 62.23)
 		)
 		(stroke
@@ -4923,6 +4802,16 @@
 			(type default)
 		)
 		(uuid "ee9d3e69-e5ff-47ae-b4c1-106e298ac986")
+	)
+	(wire
+		(pts
+			(xy 127 171.45) (xy 127 177.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ef3594fe-52f6-4dc4-a57c-647bb069f6c7")
 	)
 	(wire
 		(pts
@@ -4986,23 +4875,23 @@
 	)
 	(wire
 		(pts
-			(xy 142.24 160.02) (xy 142.24 148.59)
+			(xy 148.59 156.21) (xy 153.67 156.21)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "ff2f9e93-e4f9-4beb-bb6f-441c675ab0ee")
+		(uuid "fbef5fad-859d-48f2-8656-bcfa1dc69f65")
 	)
 	(wire
 		(pts
-			(xy 124.46 171.45) (xy 124.46 166.37)
+			(xy 138.43 146.05) (xy 138.43 156.21)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
-		(uuid "ffd5ca23-eb8b-4a93-95ec-7ab51b0a6b21")
+		(uuid "ff6ec896-a0a8-404c-b88e-71273e09e411")
 	)
 	(rectangle
 		(start 97.79 78.74)
@@ -5139,7 +5028,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "NHD2712864WDW3"
+		(property "Footprint" "NHD-2.7-12864WDW3:NHD2712864WDW3"
 			(at 246.38 58.42 0)
 			(effects
 				(font
@@ -5323,7 +5212,7 @@
 				)
 			)
 		)
-		(property "Footprint" "SJ1-3513:CUI_SJ1-3513"
+		(property "Footprint" "SJ1_3513:CUI_SJ1-3513"
 			(at 30.48 64.77 0)
 			(effects
 				(font
@@ -5333,7 +5222,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.cuidevices.com/product/resource/sj1-351x.pdf"
 			(at 30.48 64.77 0)
 			(effects
 				(font
@@ -5427,7 +5316,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PEC11R_4215F_S0024:XDCR_PEC11R-4215F-S0024"
 			(at 60.96 139.954 0)
 			(effects
 				(font
@@ -5436,7 +5325,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf"
 			(at 57.15 142.494 0)
 			(effects
 				(font
@@ -5500,7 +5389,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PEC11R_4215F_S0024:XDCR_PEC11R-4215F-S0024"
 			(at 60.96 178.054 0)
 			(effects
 				(font
@@ -5509,7 +5398,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf"
 			(at 57.15 180.594 0)
 			(effects
 				(font
@@ -5540,152 +5429,6 @@
 			(project "microgroove"
 				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
 					(reference "SW6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Switch:SW_Push_Dual")
-		(at 147.32 163.83 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "3b6ae051-1fa0-436a-ba05-c0d70e4eb912")
-		(property "Reference" "SW8"
-			(at 147.32 152.908 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SW_Push_Dual"
-			(at 147.32 155.448 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 147.32 156.21 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 147.32 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Push button switch, generic, symbol, four pins"
-			(at 147.32 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "4"
-			(uuid "430ff5fa-6ccc-4b98-9bdf-f7ad2fd69e5a")
-		)
-		(pin "1"
-			(uuid "f59cec7f-d5fd-414a-84ee-119b37eec572")
-		)
-		(pin "2"
-			(uuid "df93cc9c-bd21-41ef-a48f-84a0922625b9")
-		)
-		(pin "3"
-			(uuid "858285cc-7a2a-4c90-9f90-f2a23dbba1a2")
-		)
-		(instances
-			(project "microgroove"
-				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
-					(reference "SW8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Switch:SW_Push_Dual")
-		(at 161.29 99.06 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "3ccfb7d9-6abb-4f27-809c-f14e5cd14291")
-		(property "Reference" "SW7"
-			(at 161.29 88.138 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SW_Push_Dual"
-			(at 161.29 90.678 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 161.29 91.44 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 161.29 99.06 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Push button switch, generic, symbol, four pins"
-			(at 161.29 99.06 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "4"
-			(uuid "430ff5fa-6ccc-4b98-9bdf-f7ad2fd69e5b")
-		)
-		(pin "1"
-			(uuid "f59cec7f-d5fd-414a-84ee-119b37eec573")
-		)
-		(pin "2"
-			(uuid "df93cc9c-bd21-41ef-a48f-84a0922625ba")
-		)
-		(pin "3"
-			(uuid "858285cc-7a2a-4c90-9f90-f2a23dbba1a3")
-		)
-		(instances
-			(project "microgroove"
-				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
-					(reference "SW7")
 					(unit 1)
 				)
 			)
@@ -5784,7 +5527,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 			(at 54.61 31.242 90)
 			(effects
 				(font
@@ -5918,7 +5661,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 			(at 54.61 60.452 90)
 			(effects
 				(font
@@ -6115,79 +5858,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Switch:SW_Push_Dual")
-		(at 133.35 163.83 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "7971963c-a359-4170-81f1-cef70e0ee2e5")
-		(property "Reference" "SW9"
-			(at 133.35 152.908 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "SW_Push_Dual"
-			(at 133.35 155.448 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 133.35 156.21 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 133.35 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Push button switch, generic, symbol, four pins"
-			(at 133.35 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "4"
-			(uuid "430ff5fa-6ccc-4b98-9bdf-f7ad2fd69e5c")
-		)
-		(pin "1"
-			(uuid "f59cec7f-d5fd-414a-84ee-119b37eec574")
-		)
-		(pin "2"
-			(uuid "df93cc9c-bd21-41ef-a48f-84a0922625bb")
-		)
-		(pin "3"
-			(uuid "858285cc-7a2a-4c90-9f90-f2a23dbba1a4")
-		)
-		(instances
-			(project "microgroove"
-				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
-					(reference "SW9")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:RotaryEncoder")
 		(at 57.15 123.19 180)
 		(unit 1)
@@ -6215,7 +5885,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PEC11R_4215F_S0024:XDCR_PEC11R-4215F-S0024"
 			(at 60.96 127.254 0)
 			(effects
 				(font
@@ -6224,7 +5894,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf"
 			(at 57.15 129.794 0)
 			(effects
 				(font
@@ -6288,7 +5958,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Package_DIP:DIP-6_W7.62mm"
 			(at 76.454 64.77 0)
 			(effects
 				(font
@@ -6410,6 +6080,77 @@
 		)
 	)
 	(symbol
+		(lib_id "SW4_TL1100F160Q6JBLK_EWI:TL1100F160Q6JBLK")
+		(at 148.59 163.83 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8f4ea1ff-1025-4916-aa40-3f3787351a21")
+		(property "Reference" "SW8"
+			(at 145.288 150.114 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TL1100F160Q6JBLK"
+			(at 137.16 152.908 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "footprints:SW4_TL1100F160Q6JBLK_EWI"
+			(at 148.59 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "TL1100F160Q6JBLK"
+			(at 148.59 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 148.59 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "0973f610-c570-42a4-8125-433f475532bd")
+		)
+		(pin "1"
+			(uuid "d5ffcd7d-25f0-4364-ae5f-3570be4cc7f7")
+		)
+		(instances
+			(project "microgroove"
+				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
+					(reference "SW8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:R")
 		(at 85.09 53.34 270)
 		(unit 1)
@@ -6435,7 +6176,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 			(at 85.09 51.562 90)
 			(effects
 				(font
@@ -6503,7 +6244,7 @@
 				)
 			)
 		)
-		(property "Footprint" "SJ1-3513:CUI_SJ1-3513"
+		(property "Footprint" "SJ1_3513:CUI_SJ1-3513"
 			(at 30.48 33.02 0)
 			(effects
 				(font
@@ -6513,7 +6254,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.cuidevices.com/product/resource/sj1-351x.pdf"
 			(at 30.48 33.02 0)
 			(effects
 				(font
@@ -6580,73 +6321,71 @@
 		)
 	)
 	(symbol
-		(lib_id "Switch:SW_Push_Dual")
-		(at 105.41 163.83 0)
+		(lib_id "SW4_TL1100F160Q6JBLK_EWI:TL1100F160Q6JBLK")
+		(at 166.37 133.35 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "98ecb536-892d-487c-b969-cd1d1cdbec1b")
-		(property "Reference" "SW11"
-			(at 105.41 152.908 0)
+		(uuid "95e8d329-030a-4dd8-bef9-887fd7ef602c")
+		(property "Reference" "SW7"
+			(at 163.068 119.634 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TL1100F160Q6JBLK"
+			(at 154.94 122.428 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "footprints:SW4_TL1100F160Q6JBLK_EWI"
+			(at 166.37 133.35 0)
 			(effects
 				(font
 					(size 1.27 1.27)
+					(italic yes)
 				)
+				(hide yes)
 			)
 		)
-		(property "Value" "SW_Push_Dual"
-			(at 105.41 155.448 0)
+		(property "Datasheet" "TL1100F160Q6JBLK"
+			(at 166.37 133.35 0)
 			(effects
 				(font
 					(size 1.27 1.27)
+					(italic yes)
 				)
+				(hide yes)
 			)
 		)
-		(property "Footprint" ""
-			(at 105.41 156.21 0)
+		(property "Description" ""
+			(at 166.37 133.35 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
 			)
-		)
-		(property "Datasheet" "~"
-			(at 105.41 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Push button switch, generic, symbol, four pins"
-			(at 105.41 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "4"
-			(uuid "430ff5fa-6ccc-4b98-9bdf-f7ad2fd69e5d")
-		)
-		(pin "1"
-			(uuid "f59cec7f-d5fd-414a-84ee-119b37eec575")
 		)
 		(pin "2"
-			(uuid "df93cc9c-bd21-41ef-a48f-84a0922625bc")
+			(uuid "0a92b8b1-1c16-4c15-911c-a99a5ff52efa")
 		)
-		(pin "3"
-			(uuid "858285cc-7a2a-4c90-9f90-f2a23dbba1a5")
+		(pin "1"
+			(uuid "992078b6-31c0-4cbe-beef-fa785d0744ac")
 		)
 		(instances
 			(project "microgroove"
 				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
-					(reference "SW11")
+					(reference "SW7")
 					(unit 1)
 				)
 			)
@@ -6812,7 +6551,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PEC11R_4215F_S0024:XDCR_PEC11R-4215F-S0024"
 			(at 60.96 165.354 0)
 			(effects
 				(font
@@ -6821,7 +6560,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf"
 			(at 57.15 167.894 0)
 			(effects
 				(font
@@ -6883,7 +6622,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
 			(at 62.23 28.702 90)
 			(effects
 				(font
@@ -6926,73 +6665,71 @@
 		)
 	)
 	(symbol
-		(lib_id "Switch:SW_Push_Dual")
-		(at 119.38 163.83 0)
+		(lib_id "SW4_TL1100F160Q6JBLK_EWI:TL1100F160Q6JBLK")
+		(at 138.43 163.83 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "b0c53145-0fe2-455e-9e2f-cd62ee5db600")
-		(property "Reference" "SW10"
-			(at 119.38 152.908 0)
+		(uuid "b2a55bdd-9e81-45c6-9aa1-e04ca90d0a98")
+		(property "Reference" "SW9"
+			(at 135.128 150.114 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TL1100F160Q6JBLK"
+			(at 127 152.908 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "footprints:SW4_TL1100F160Q6JBLK_EWI"
+			(at 138.43 163.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
+					(italic yes)
 				)
+				(hide yes)
 			)
 		)
-		(property "Value" "SW_Push_Dual"
-			(at 119.38 155.448 0)
+		(property "Datasheet" "TL1100F160Q6JBLK"
+			(at 138.43 163.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
+					(italic yes)
 				)
+				(hide yes)
 			)
 		)
-		(property "Footprint" ""
-			(at 119.38 156.21 0)
+		(property "Description" ""
+			(at 138.43 163.83 0)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
 				(hide yes)
 			)
-		)
-		(property "Datasheet" "~"
-			(at 119.38 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "Push button switch, generic, symbol, four pins"
-			(at 119.38 163.83 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "4"
-			(uuid "430ff5fa-6ccc-4b98-9bdf-f7ad2fd69e5e")
-		)
-		(pin "1"
-			(uuid "f59cec7f-d5fd-414a-84ee-119b37eec576")
 		)
 		(pin "2"
-			(uuid "df93cc9c-bd21-41ef-a48f-84a0922625bd")
+			(uuid "fef9ef27-8e93-465c-b063-d9921786e031")
 		)
-		(pin "3"
-			(uuid "858285cc-7a2a-4c90-9f90-f2a23dbba1a6")
+		(pin "1"
+			(uuid "d8b56966-1fe9-4bfa-8221-47a755dd283b")
 		)
 		(instances
 			(project "microgroove"
 				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
-					(reference "SW10")
+					(reference "SW9")
 					(unit 1)
 				)
 			)
@@ -7024,7 +6761,7 @@
 				)
 			)
 		)
-		(property "Footprint" "CUIDEVICES_UJ2-MIBH-4-SMT-TR"
+		(property "Footprint" "UJ2-MIBH-4-SMT-TR:CUIDEVICES_UJ2-MIBH-4-SMT-TR"
 			(at 143.51 33.02 0)
 			(effects
 				(font
@@ -7034,7 +6771,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.cuidevices.com/product/resource/uj2-mibh-4-smt.pdf"
 			(at 143.51 33.02 0)
 			(effects
 				(font
@@ -7219,7 +6956,7 @@
 				)
 			)
 		)
-		(property "Footprint" "RPi_Pico:RPi_Pico_SMD_TH"
+		(property "Footprint" "MCU_RaspberryPi_and_Boards:RPi_Pico_SMD_TH"
 			(at 133.35 99.06 90)
 			(effects
 				(font
@@ -7228,7 +6965,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf"
 			(at 133.35 99.06 0)
 			(effects
 				(font
@@ -7385,6 +7122,148 @@
 		)
 	)
 	(symbol
+		(lib_id "SW4_TL1100F160Q6JBLK_EWI:TL1100F160Q6JBLK")
+		(at 115.57 163.83 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e6bdea73-2d92-4a3f-b733-5e7773553166")
+		(property "Reference" "SW11"
+			(at 112.268 150.114 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TL1100F160Q6JBLK"
+			(at 104.14 152.908 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "footprints:SW4_TL1100F160Q6JBLK_EWI"
+			(at 115.57 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "TL1100F160Q6JBLK"
+			(at 115.57 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 115.57 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "20de9343-c951-4a3b-8408-04c90287aa50")
+		)
+		(pin "1"
+			(uuid "065b93bb-4e6a-48c7-84ff-1979da8ea40e")
+		)
+		(instances
+			(project "microgroove"
+				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
+					(reference "SW11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "SW4_TL1100F160Q6JBLK_EWI:TL1100F160Q6JBLK")
+		(at 127 163.83 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ea66910c-14c3-40d6-8101-1bb3e5693eb8")
+		(property "Reference" "SW10"
+			(at 123.698 150.114 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "TL1100F160Q6JBLK"
+			(at 115.57 152.908 90)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "footprints:SW4_TL1100F160Q6JBLK_EWI"
+			(at 127 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "TL1100F160Q6JBLK"
+			(at 127 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 127 163.83 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "2"
+			(uuid "8578ae01-da2b-4195-b4c7-9c7871851ba2")
+		)
+		(pin "1"
+			(uuid "87b9d822-b9e3-4646-988b-36c827b32068")
+		)
+		(instances
+			(project "microgroove"
+				(path "/5091ca8e-c9a1-4010-9756-919cac25e700"
+					(reference "SW10")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 133.35 137.16 0)
 		(unit 1)
@@ -7478,7 +7357,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PEC11R_4215F_S0024:XDCR_PEC11R-4215F-S0024"
 			(at 60.96 152.654 0)
 			(effects
 				(font
@@ -7487,7 +7366,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf"
 			(at 57.15 155.194 0)
 			(effects
 				(font
@@ -7618,7 +7497,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "PEC11R_4215F_S0024:XDCR_PEC11R-4215F-S0024"
 			(at 60.96 114.554 0)
 			(effects
 				(font
@@ -7627,7 +7506,7 @@
 				(hide yes)
 			)
 		)
-		(property "Datasheet" "~"
+		(property "Datasheet" "https://www.bourns.com/docs/Product-Datasheets/PEC11R.pdf"
 			(at 57.15 117.094 0)
 			(effects
 				(font
