@@ -1,426 +1,136 @@
-(kicad_symbol_lib
-	(version 20231120)
-	(generator "kicad_symbol_editor")
-	(generator_version "8.0")
-	(symbol "NHD-2.7-12864WDW3"
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(property "Reference" "DS"
-			(at 0 18.796 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "NHD-2.7-12864WDW3"
-			(at -0.254 16.256 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 0 0 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 0 0 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 0 0 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(symbol "NHD-2.7-12864WDW3_1_1"
-			(rectangle
-				(start -30.48 13.97)
-				(end 30.48 -12.7)
-				(stroke
-					(width 0)
-					(type default)
-				)
-				(fill
-					(type background)
-				)
-			)
-			(pin input line
-				(at -22.86 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 0 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "10"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 2.54 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "11"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 5.08 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "12"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 7.62 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "13"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 10.16 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "14"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 12.7 -15.24 90)
-				(length 2.54)
-				(name "NC_(VCC)"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "15"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 15.24 -15.24 90)
-				(length 2.54)
-				(name "~{RES}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "16"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 17.78 -15.24 90)
-				(length 2.54)
-				(name "~{CS}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "17"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 20.32 -15.24 90)
-				(length 2.54)
-				(name "~{SHDN}"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "18"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 22.86 -15.24 90)
-				(length 2.54)
-				(name "BS1"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "19"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -20.32 -15.24 90)
-				(length 2.54)
-				(name "VDD"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at 25.4 -15.24 90)
-				(length 2.54)
-				(name "BS0"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "20"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -17.78 -15.24 90)
-				(length 2.54)
-				(name "NC_(BC_VDD)"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "3"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -15.24 -15.24 90)
-				(length 2.54)
-				(name "D/C"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "4"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -12.7 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "5"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -10.16 -15.24 90)
-				(length 2.54)
-				(name "VSS"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "6"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -7.62 -15.24 90)
-				(length 2.54)
-				(name "SCLK"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "7"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -5.08 -15.24 90)
-				(length 2.54)
-				(name "SDIN"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "8"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin input line
-				(at -2.54 -15.24 90)
-				(length 2.54)
-				(name "NC"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-		)
-	)
+(kicad_symbol_lib (version 20211014) (generator SamacSys_ECAD_Model)
+  (symbol "NHD-2.7-12864WDW3" (in_bom yes) (on_board yes)
+    (property "Reference" "DS" (at 34.29 7.62 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (property "Value" "NHD-2.7-12864WDW3" (at 34.29 5.08 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (property "Footprint" "NHD2712864WDW3" (at 34.29 -94.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "Datasheet" "https://componentsearchengine.com/Datasheets/1/NHD-2.7-12864WDW3.pdf" (at 34.29 -194.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "ki_description" "LCD OLED GRAPHIC 128X64 WHT" (at 34.29 -294.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "Height" "6" (at 34.29 -394.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "Mouser Part Number" "763-NHD2712864WDW3" (at 34.29 -494.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "Mouser Price/Stock" "https://www.mouser.co.uk/ProductDetail/Newhaven-Display/NHD-2.7-12864WDW3?qs=EU6FO9ffTwf2tAy5%2FRPmRA%3D%3D" (at 34.29 -594.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "Manufacturer_Name" "Newhaven Display" (at 34.29 -694.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (property "Manufacturer_Part_Number" "NHD-2.7-12864WDW3" (at 34.29 -794.92 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (rectangle
+      (start 5.08 2.54)
+      (end 33.02 -55.88)
+      (stroke (width 0.254) (type default))
+      (fill (type background))
+    )
+    (pin passive line (at 38.1 -50.8 180) (length 5.08)
+      (name "VSS" (effects (font (size 1.27 1.27))))
+      (number "1" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -48.26 180) (length 5.08)
+      (name "VDD" (effects (font (size 1.27 1.27))))
+      (number "2" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -45.72 180) (length 5.08)
+      (name "N.C._(BC_VDD)" (effects (font (size 1.27 1.27))))
+      (number "3" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -43.18 180) (length 5.08)
+      (name "D/C" (effects (font (size 1.27 1.27))))
+      (number "4" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -40.64 180) (length 5.08)
+      (name "R/W_OR_/WR" (effects (font (size 1.27 1.27))))
+      (number "5" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -38.1 180) (length 5.08)
+      (name "E_OR_/RD" (effects (font (size 1.27 1.27))))
+      (number "6" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -35.56 180) (length 5.08)
+      (name "DB0" (effects (font (size 1.27 1.27))))
+      (number "7" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -33.02 180) (length 5.08)
+      (name "DB1" (effects (font (size 1.27 1.27))))
+      (number "8" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -30.48 180) (length 5.08)
+      (name "DB2" (effects (font (size 1.27 1.27))))
+      (number "9" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -27.94 180) (length 5.08)
+      (name "DB3" (effects (font (size 1.27 1.27))))
+      (number "10" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -25.4 180) (length 5.08)
+      (name "DB4" (effects (font (size 1.27 1.27))))
+      (number "11" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -22.86 180) (length 5.08)
+      (name "DB5" (effects (font (size 1.27 1.27))))
+      (number "12" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -20.32 180) (length 5.08)
+      (name "DB6" (effects (font (size 1.27 1.27))))
+      (number "13" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -17.78 180) (length 5.08)
+      (name "DB7" (effects (font (size 1.27 1.27))))
+      (number "14" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -15.24 180) (length 5.08)
+      (name "N.C._(VCC)" (effects (font (size 1.27 1.27))))
+      (number "15" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -12.7 180) (length 5.08)
+      (name "/RES" (effects (font (size 1.27 1.27))))
+      (number "16" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -10.16 180) (length 5.08)
+      (name "/CS" (effects (font (size 1.27 1.27))))
+      (number "17" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -7.62 180) (length 5.08)
+      (name "/SHDN_(N.C.)" (effects (font (size 1.27 1.27))))
+      (number "18" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -5.08 180) (length 5.08)
+      (name "BS1" (effects (font (size 1.27 1.27))))
+      (number "19" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -2.54 180) (length 5.08)
+      (name "BS0" (effects (font (size 1.27 1.27))))
+      (number "20" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 -53.34 180) (length 5.08)
+      (name "MH1" (effects (font (size 1.27 1.27))))
+      (number "MH1" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 38.1 0 180) (length 5.08)
+      (name "MH2" (effects (font (size 1.27 1.27))))
+      (number "MH2" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 0 0 0) (length 5.08)
+      (name "MH3" (effects (font (size 1.27 1.27))))
+      (number "MH3" (effects (font (size 1.27 1.27))))
+    )
+    (pin passive line (at 0 -2.54 0) (length 5.08)
+      (name "MH4" (effects (font (size 1.27 1.27))))
+      (number "MH4" (effects (font (size 1.27 1.27))))
+    )
+  )
 )
